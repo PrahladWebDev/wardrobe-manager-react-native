@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../context/AuthContext';
 import Card from '../components/Card';
 import Button from '../components/Button';
@@ -15,6 +16,36 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const [homeCity, setHomeCity] = useState(user?.homeCity || '');
   const [saving, setSaving] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
+  const handlePickAvatar = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      return Alert.alert('Permission needed', 'Please allow photo library access to continue.');
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.7,
+      allowsEditing: true,
+      aspect: [1, 1],
+    });
+    if (result.canceled) return;
+
+    const asset = result.assets[0];
+    setUploadingAvatar(true);
+    try {
+      const filename = asset.uri.split('/').pop();
+      const match = /\.(\w+)$/.exec(filename || '');
+      const type = match ? `image/${match[1]}` : 'image/jpeg';
+      const form = new FormData();
+      form.append('avatar', { uri: asset.uri, name: filename || 'avatar.jpg', type });
+      await updateProfile(form);
+    } catch (err) {
+      Alert.alert('Could not update photo', err.message);
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
 
   const handleSaveCity = async () => {
     setSaving(true);
@@ -31,9 +62,20 @@ export default function ProfileScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ padding: 20, paddingTop: insets.top + 20, paddingBottom: 60 }}>
       <View style={styles.avatarRow}>
-        <View style={styles.avatar}>
-          <Ionicons name="person" size={30} color={colors.accent} />
-        </View>
+        <TouchableOpacity onPress={handlePickAvatar} disabled={uploadingAvatar} activeOpacity={0.8}>
+          <View style={styles.avatar}>
+            {uploadingAvatar ? (
+              <ActivityIndicator color={colors.accent} />
+            ) : user?.avatarUrl ? (
+              <Image source={{ uri: user.avatarUrl }} style={styles.avatarImage} />
+            ) : (
+              <Ionicons name="person" size={30} color={colors.accent} />
+            )}
+          </View>
+          <View style={styles.avatarBadge}>
+            <Ionicons name="camera" size={13} color="#fff" />
+          </View>
+        </TouchableOpacity>
         <View style={{ marginLeft: 14 }}>
           <Text style={typography.h2}>{user?.name}</Text>
           <Text style={typography.bodyMuted}>{user?.email}</Text>
@@ -74,7 +116,13 @@ const styles = StyleSheet.create({
   avatarRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 24 },
   avatar: {
     width: 60, height: 60, borderRadius: radius.pill, backgroundColor: colors.accentSoft,
-    alignItems: 'center', justifyContent: 'center',
+    alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+  },
+  avatarImage: { width: '100%', height: '100%' },
+  avatarBadge: {
+    position: 'absolute', bottom: -2, right: -2, width: 22, height: 22, borderRadius: radius.pill,
+    backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center',
+    borderWidth: 2, borderColor: colors.bg,
   },
   menuCard: { flexDirection: 'row', alignItems: 'center' },
   footer: { textAlign: 'center', color: colors.textFaint, fontSize: 12, marginTop: 30 },

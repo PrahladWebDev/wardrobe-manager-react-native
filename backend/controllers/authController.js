@@ -1,8 +1,20 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const cloudinary = require('../config/cloudinary');
 
 const genToken = (id) =>
   jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN || '30d' });
+
+// Streams a buffer up to Cloudinary and resolves with the resulting secure_url.
+function uploadAvatarBuffer(buffer) {
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      { folder: 'wardrobe-manager/avatars', resource_type: 'image' },
+      (err, result) => (err ? reject(err) : resolve(result))
+    );
+    stream.end(buffer);
+  });
+}
 
 // POST /api/auth/register
 exports.register = async (req, res) => {
@@ -49,7 +61,12 @@ exports.updateMe = async (req, res) => {
     if (homeCity !== undefined) user.homeCity = homeCity;
     if (homeLat !== undefined) user.homeLat = homeLat;
     if (homeLon !== undefined) user.homeLon = homeLon;
-    if (avatarUrl !== undefined) user.avatarUrl = avatarUrl;
+    if (req.file) {
+      const uploaded = await uploadAvatarBuffer(req.file.buffer);
+      user.avatarUrl = uploaded.secure_url;
+    } else if (avatarUrl !== undefined) {
+      user.avatarUrl = avatarUrl;
+    }
     await user.save();
     res.json({ user: user.toSafeObject() });
   } catch (err) {

@@ -49,7 +49,10 @@ export function AuthProvider({ children }) {
   }, []);
 
   const updateProfile = useCallback(async (updates) => {
-    const { data } = await api.put('/auth/me', updates);
+    const isFormData = typeof FormData !== 'undefined' && updates instanceof FormData;
+    const { data } = await api.put('/auth/me', updates, isFormData
+      ? { headers: { 'Content-Type': 'multipart/form-data' } }
+      : undefined);
     setUser(data.user);
     return data.user;
   }, []);
