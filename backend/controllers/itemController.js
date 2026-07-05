@@ -3,7 +3,7 @@ const ClothingItem = require('../models/ClothingItem');
 const WearLog = require('../models/WearLog');
 const { removeBackgroundFromBuffer } = require('../utils/removeBackground');
 
-// Streams a buffer up to Cloudinary and resolves with the resulting secure_url.
+// Streams buffer up to Cloudinary and resolves with the resulting secure_url.
 function uploadBufferToCloudinary(buffer, options = {}) {
   return new Promise((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(
