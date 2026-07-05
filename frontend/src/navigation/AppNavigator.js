@@ -15,6 +15,7 @@ import OutfitsScreen from '../screens/OutfitsScreen';
 import CreateOutfitScreen from '../screens/CreateOutfitScreen';
 import OutfitDetailScreen from '../screens/OutfitDetailScreen';
 import TodayScreen from '../screens/TodayScreen';
+import CalendarScreen from '../screens/CalendarScreen';
 import StatsScreen from '../screens/StatsScreen';
 import PackingListScreen from '../screens/PackingListScreen';
 import ProfileScreen from '../screens/ProfileScreen';
@@ -67,6 +68,7 @@ function MainTabs() {
             WardrobeTab: 'shirt-outline',
             Today: 'sunny-outline',
             OutfitsTab: 'albums-outline',
+            Calendar: 'calendar-outline',
             Stats: 'stats-chart-outline',
             Profile: 'person-outline',
           };
@@ -77,6 +79,7 @@ function MainTabs() {
       <Tabs.Screen name="WardrobeTab" component={WardrobeStackNav} options={{ title: 'Wardrobe' }} />
       <Tabs.Screen name="Today" component={TodayScreen} options={{ title: 'Today' }} />
       <Tabs.Screen name="OutfitsTab" component={OutfitsStackNav} options={{ title: 'Outfits' }} />
+      <Tabs.Screen name="Calendar" component={CalendarScreen} options={{ title: 'Calendar' }} />
       <Tabs.Screen name="Stats" component={StatsScreen} options={{ title: 'Stats' }} />
       <Tabs.Screen name="Profile" component={ProfileScreen} options={{ title: 'Profile' }} />
     </Tabs.Navigator>

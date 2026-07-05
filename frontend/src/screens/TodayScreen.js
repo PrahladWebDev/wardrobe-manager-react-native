@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, Image, RefreshControl, TouchableOpa
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { useFocusEffect } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import api from '../api/client';
 import Card from '../components/Card';
 import Button from '../components/Button';
@@ -47,6 +48,7 @@ function PieceRow({ label, item }) {
 }
 
 export default function TodayScreen() {
+  const insets = useSafeAreaInsets();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [locationDenied, setLocationDenied] = useState(false);
@@ -78,7 +80,7 @@ export default function TodayScreen() {
   return (
     <ScrollView
       style={styles.container}
-      contentContainerStyle={{ padding: 20, paddingBottom: 60 }}
+      contentContainerStyle={{ padding: 20, paddingTop: insets.top + 20, paddingBottom: 60 }}
       refreshControl={<RefreshControl refreshing={loading} onRefresh={load} tintColor={colors.accent} />}
     >
       <Text style={typography.h1}>Today</Text>

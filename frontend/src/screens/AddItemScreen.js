@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import api from '../api/client';
@@ -73,7 +73,16 @@ export default function AddItemScreen({ navigation, route }) {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ padding: 20, paddingBottom: 60 }}>
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+    >
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={{ padding: 20, paddingBottom: 60 }}
+        keyboardShouldPersistTaps="handled"
+      >
       <TouchableOpacity style={styles.imagePicker} onPress={() => Alert.alert('Add photo', '', [
         { text: 'Take Photo', onPress: () => pickImage(true) },
         { text: 'Choose from Library', onPress: () => pickImage(false) },
@@ -118,7 +127,8 @@ export default function AddItemScreen({ navigation, route }) {
       <Input label="Occasions (comma separated)" value={occasions} onChangeText={setOccasions} placeholder="casual, work, formal" />
 
       <Button title={isEdit ? 'Save Changes' : 'Save to Wardrobe'} onPress={handleSave} loading={saving} style={{ marginTop: spacing(4) }} />
-    </ScrollView>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 

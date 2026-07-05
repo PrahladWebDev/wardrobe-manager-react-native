@@ -1,6 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, RefreshControl } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import api from '../api/client';
 import Card from '../components/Card';
 import BarChart from '../components/BarChart';
@@ -24,6 +25,7 @@ const RANGES = [
 ];
 
 export default function StatsScreen() {
+  const insets = useSafeAreaInsets();
   const [overview, setOverview] = useState(null);
   const [mostWorn, setMostWorn] = useState([]);
   const [costPerWear, setCostPerWear] = useState([]);
@@ -61,7 +63,7 @@ export default function StatsScreen() {
   return (
     <ScrollView
       style={styles.container}
-      contentContainerStyle={{ padding: 20, paddingBottom: 60 }}
+      contentContainerStyle={{ padding: 20, paddingTop: insets.top + 20, paddingBottom: 60 }}
       refreshControl={<RefreshControl refreshing={loading} onRefresh={() => load(rangeDays)} tintColor={colors.accent} />}
     >
       <Text style={[typography.h1, { marginBottom: 16 }]}>Closet Stats</Text>

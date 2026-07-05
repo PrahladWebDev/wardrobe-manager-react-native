@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import Card from '../components/Card';
 import Button from '../components/Button';
@@ -11,6 +12,7 @@ import { colors, radius, typography, spacing } from '../theme/colors';
 export default function ProfileScreen() {
   const { user, logout, updateProfile } = useAuth();
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
   const [homeCity, setHomeCity] = useState(user?.homeCity || '');
   const [saving, setSaving] = useState(false);
 
@@ -27,7 +29,7 @@ export default function ProfileScreen() {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ padding: 20, paddingBottom: 60 }}>
+    <ScrollView style={styles.container} contentContainerStyle={{ padding: 20, paddingTop: insets.top + 20, paddingBottom: 60 }}>
       <View style={styles.avatarRow}>
         <View style={styles.avatar}>
           <Ionicons name="person" size={30} color={colors.accent} />
