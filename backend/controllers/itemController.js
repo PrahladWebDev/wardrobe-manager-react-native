@@ -1,21 +1,30 @@
-const path = require('path');
+const cloudinary = require('../config/cloudinary');
 const ClothingItem = require('../models/ClothingItem');
 const WearLog = require('../models/WearLog');
-const { removeBackgroundFromFile } = require('../utils/removeBackground');
+const { removeBackgroundFromBuffer } = require('../utils/removeBackground');
 
-const buildImageUrl = (req, filename) =>
-  `${req.protocol}://${req.get('host')}/uploads/${filename}`;
+// Streams a buffer up to Cloudinary and resolves with the resulting secure_url.
+function uploadBufferToCloudinary(buffer, options = {}) {
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      { folder: 'wardrobe-manager', resource_type: 'image', ...options },
+      (err, result) => (err ? reject(err) : resolve(result))
+    );
+    stream.end(buffer);
+  });
+}
 
 // If removeBackground was requested and a key is configured, swap in the
-// background-removed version and return its filename; otherwise return the
-// original filename untouched.
-async function resolveUploadedFilename(req) {
-  let filename = req.file.filename;
+// background-removed buffer; otherwise upload the original buffer untouched.
+// Either way, returns the Cloudinary secure_url for the uploaded image.
+async function resolveUploadedImageUrl(req) {
+  let buffer = req.file.buffer;
   if (req.body.removeBackground === 'true' || req.body.removeBackground === true) {
-    const result = await removeBackgroundFromFile(req.file.path);
-    if (result.success) filename = path.basename(result.outputPath);
+    const result = await removeBackgroundFromBuffer(buffer, req.file.originalname);
+    if (result.success) buffer = result.buffer;
   }
-  return filename;
+  const uploaded = await uploadBufferToCloudinary(buffer);
+  return uploaded.secure_url;
 }
 
 // GET /api/items?category=&season=&occasion=&search=&inLaundry=&favorite=&page=&limit=
@@ -66,7 +75,7 @@ exports.createItem = async (req, res) => {
     if (!name || !category) return res.status(400).json({ message: 'name and category are required' });
 
     let imageUrl = req.body.imageUrl || '';
-    if (req.file) imageUrl = buildImageUrl(req, await resolveUploadedFilename(req));
+    if (req.file) imageUrl = await resolveUploadedImageUrl(req);
 
     const occasionsArr = Array.isArray(occasions)
       ? occasions
@@ -107,7 +116,7 @@ exports.updateItem = async (req, res) => {
         ? req.body.occasions
         : req.body.occasions.split(',').map((o) => o.trim()).filter(Boolean);
     }
-    if (req.file) item.imageUrl = buildImageUrl(req, await resolveUploadedFilename(req));
+    if (req.file) item.imageUrl = await resolveUploadedImageUrl(req);
     else if (req.body.imageUrl !== undefined) item.imageUrl = req.body.imageUrl;
 
     await item.save();
