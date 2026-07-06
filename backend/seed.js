@@ -1,4 +1,4 @@
-// Idempotent-ish demo seed: creates a demo user (if missing) and a starter wardrobe.
+// Idempotent-ish demo seed: creates  demo user (if missing) and a starter wardrobe.
 require('dotenv').config();
 const mongoose = require('mongoose');
 const connectDB = require('./config/db');
