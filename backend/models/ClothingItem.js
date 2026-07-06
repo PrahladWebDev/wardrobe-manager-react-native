@@ -11,7 +11,12 @@ const clothingItemSchema = new mongoose.Schema(
     color: { type: String, default: '' },
     season: { type: String, enum: SEASONS, default: 'all' },
     occasions: [{ type: String, trim: true, lowercase: true }],
+    // imageUrl stays as the "cover" photo (images[0]) so every existing screen
+    // that only reads imageUrl keeps working untouched.
     imageUrl: { type: String, default: '' },
+    // Full photo gallery for this item (front/back/detail/etc). imageUrl is
+    // kept in sync with images[0] whenever images changes.
+    images: [{ type: String }],
     brand: { type: String, default: '' },
     price: { type: Number, default: 0, min: 0 },
     wearCount: { type: Number, default: 0 },

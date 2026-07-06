@@ -1,4 +1,5 @@
 import React from 'react';
+import { TouchableOpacity } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -11,9 +12,14 @@ import RegisterScreen from '../screens/RegisterScreen';
 import WardrobeScreen from '../screens/WardrobeScreen';
 import AddItemScreen from '../screens/AddItemScreen';
 import ItemDetailScreen from '../screens/ItemDetailScreen';
+import BarcodeScanScreen from '../screens/BarcodeScanScreen';
 import OutfitsScreen from '../screens/OutfitsScreen';
 import CreateOutfitScreen from '../screens/CreateOutfitScreen';
 import OutfitDetailScreen from '../screens/OutfitDetailScreen';
+import PollsScreen from '../screens/PollsScreen';
+import CreatePollScreen from '../screens/CreatePollScreen';
+import PollResultsScreen from '../screens/PollResultsScreen';
+import VotePollScreen from '../screens/VotePollScreen';
 import TodayScreen from '../screens/TodayScreen';
 import CalendarScreen from '../screens/CalendarScreen';
 import StatsScreen from '../screens/StatsScreen';
@@ -37,6 +43,11 @@ function WardrobeStackNav() {
         options={({ route }) => ({ title: route.params?.item ? 'Edit Item' : 'Add Item', presentation: 'modal' })}
       />
       <WardrobeStack.Screen name="ItemDetail" component={ItemDetailScreen} options={{ title: 'Item' }} />
+      <WardrobeStack.Screen
+        name="BarcodeScan"
+        component={BarcodeScanScreen}
+        options={{ title: 'Scan Barcode', presentation: 'modal', headerStyle: { backgroundColor: colors.black }, headerTintColor: '#fff' }}
+      />
     </WardrobeStack.Navigator>
   );
 }
@@ -44,13 +55,28 @@ function WardrobeStackNav() {
 function OutfitsStackNav() {
   return (
     <OutfitsStack.Navigator screenOptions={{ headerShadowVisible: false, headerStyle: { backgroundColor: colors.bg } }}>
-      <OutfitsStack.Screen name="Outfits" component={OutfitsScreen} options={{ title: 'Outfits' }} />
+      <OutfitsStack.Screen
+        name="Outfits"
+        component={OutfitsScreen}
+        options={({ navigation }) => ({
+          title: 'Outfits',
+          headerRight: () => (
+            <TouchableOpacity onPress={() => navigation.navigate('Polls')} style={{ paddingHorizontal: 4 }}>
+              <Ionicons name="bar-chart-outline" size={22} color={colors.accent} />
+            </TouchableOpacity>
+          ),
+        })}
+      />
       <OutfitsStack.Screen
         name="CreateOutfit"
         component={CreateOutfitScreen}
         options={({ route }) => ({ title: route.params?.outfit ? 'Edit Outfit' : 'New Outfit', presentation: 'modal' })}
       />
       <OutfitsStack.Screen name="OutfitDetail" component={OutfitDetailScreen} options={{ title: 'Outfit' }} />
+      <OutfitsStack.Screen name="Polls" component={PollsScreen} options={{ title: 'Outfit Polls' }} />
+      <OutfitsStack.Screen name="CreatePoll" component={CreatePollScreen} options={{ title: 'New Poll', presentation: 'modal' }} />
+      <OutfitsStack.Screen name="PollResults" component={PollResultsScreen} options={{ title: 'Poll Results' }} />
+      <OutfitsStack.Screen name="VotePoll" component={VotePollScreen} options={{ title: 'Vote on a Poll', presentation: 'modal' }} />
     </OutfitsStack.Navigator>
   );
 }

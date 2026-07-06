@@ -2,6 +2,8 @@ const cloudinary = require('../config/cloudinary');
 const ClothingItem = require('../models/ClothingItem');
 const WearLog = require('../models/WearLog');
 const { removeBackgroundFromBuffer } = require('../utils/removeBackground');
+const { lookupBarcode } = require('../utils/barcodeLookup');
+const { scanReceipt } = require('../utils/ocr');
 
 // Streams buffer up to Cloudinary and resolves with the resulting secure_url.
 function uploadBufferToCloudinary(buffer, options = {}) {
@@ -16,15 +18,23 @@ function uploadBufferToCloudinary(buffer, options = {}) {
 
 // If removeBackground was requested and a key is configured, swap in the
 // background-removed buffer; otherwise upload the original buffer untouched.
-// Either way, returns the Cloudinary secure_url for the uploaded image.
-async function resolveUploadedImageUrl(req) {
-  let buffer = req.file.buffer;
-  if (req.body.removeBackground === 'true' || req.body.removeBackground === true) {
-    const result = await removeBackgroundFromBuffer(buffer, req.file.originalname);
+async function uploadOneFile(file, removeBg) {
+  let buffer = file.buffer;
+  if (removeBg) {
+    const result = await removeBackgroundFromBuffer(buffer, file.originalname);
     if (result.success) buffer = result.buffer;
   }
   const uploaded = await uploadBufferToCloudinary(buffer);
   return uploaded.secure_url;
+}
+
+// Uploads every file in req.files (multer .array('images', 6)) in parallel and
+// returns the resulting Cloudinary secure_urls, in the same order they were sent.
+async function resolveUploadedImageUrls(req) {
+  const removeBg = req.body.removeBackground === 'true' || req.body.removeBackground === true;
+  const files = req.files && req.files.length ? req.files : (req.file ? [req.file] : []);
+  if (!files.length) return [];
+  return Promise.all(files.map((f) => uploadOneFile(f, removeBg)));
 }
 
 // GET /api/items?category=&season=&occasion=&search=&inLaundry=&favorite=&page=&limit=
@@ -68,14 +78,16 @@ exports.getItem = async (req, res) => {
   }
 };
 
-// POST /api/items
+// POST /api/items  (multipart field: images[], up to 6)
 exports.createItem = async (req, res) => {
   try {
     const { name, category, color, season, occasions, brand, price, notes, favorite } = req.body;
     if (!name || !category) return res.status(400).json({ message: 'name and category are required' });
 
-    let imageUrl = req.body.imageUrl || '';
-    if (req.file) imageUrl = await resolveUploadedImageUrl(req);
+    let images = [];
+    if (req.body.imageUrl) images = [req.body.imageUrl];
+    const uploaded = await resolveUploadedImageUrls(req);
+    if (uploaded.length) images = uploaded;
 
     const occasionsArr = Array.isArray(occasions)
       ? occasions
@@ -88,7 +100,8 @@ exports.createItem = async (req, res) => {
       color,
       season: season || 'all',
       occasions: occasionsArr,
-      imageUrl,
+      images,
+      imageUrl: images[0] || '',
       brand,
       price: Number(price) || 0,
       notes,
@@ -101,6 +114,9 @@ exports.createItem = async (req, res) => {
 };
 
 // PUT /api/items/:id
+// New photos (if any) are appended to the existing gallery. Pass
+// removeImages: ["<url>", ...] (JSON array or comma-separated string) in the
+// body to drop specific photos from the gallery at the same time.
 exports.updateItem = async (req, res) => {
   try {
     const item = await ClothingItem.findOne({ _id: req.params.id, user: req.user._id });
@@ -116,8 +132,24 @@ exports.updateItem = async (req, res) => {
         ? req.body.occasions
         : req.body.occasions.split(',').map((o) => o.trim()).filter(Boolean);
     }
-    if (req.file) item.imageUrl = await resolveUploadedImageUrl(req);
-    else if (req.body.imageUrl !== undefined) item.imageUrl = req.body.imageUrl;
+
+    let images = item.images && item.images.length ? [...item.images] : (item.imageUrl ? [item.imageUrl] : []);
+
+    if (req.body.removeImages !== undefined) {
+      let toRemove = req.body.removeImages;
+      try { toRemove = typeof toRemove === 'string' ? JSON.parse(toRemove) : toRemove; } catch (_) {
+        toRemove = String(toRemove).split(',').map((s) => s.trim()).filter(Boolean);
+      }
+      if (Array.isArray(toRemove) && toRemove.length) {
+        images = images.filter((url) => !toRemove.includes(url));
+      }
+    }
+
+    const uploaded = await resolveUploadedImageUrls(req);
+    if (uploaded.length) images = [...images, ...uploaded];
+
+    item.images = images;
+    item.imageUrl = images[0] || '';
 
     await item.save();
     res.json({ item });
@@ -161,6 +193,31 @@ exports.logWear = async (req, res) => {
     await item.save();
     await WearLog.create({ user: req.user._id, item: item._id, occasion: req.body.occasion || '' });
     res.json({ item });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// GET /api/items/lookup-barcode?code=012345678905
+// Used by the "Scan Barcode" quick-add flow to pre-fill name/brand/price.
+exports.lookupBarcodeCode = async (req, res) => {
+  try {
+    const { code } = req.query;
+    if (!code) return res.status(400).json({ message: 'code query param is required' });
+    const result = await lookupBarcode(code);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// POST /api/items/scan-receipt  (multipart field: image)
+// Used by the "Scan Receipt" quick-add flow to pre-fill name/price via OCR.
+exports.scanReceiptImage = async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ message: 'image file is required' });
+    const result = await scanReceipt(req.file.buffer, req.file.originalname);
+    res.json(result);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

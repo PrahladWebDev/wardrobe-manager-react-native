@@ -49,6 +49,13 @@
           "cameraPermission": "Allow Wardrobe Manager to use your camera to photograph clothing items."
         }
       ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Wardrobe Manager to use your camera to scan barcodes and receipts."
+        }
+      ],
+      "expo-notifications",
       "expo-font"
     ],
     "extra": {

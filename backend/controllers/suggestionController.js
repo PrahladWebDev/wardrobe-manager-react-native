@@ -98,3 +98,85 @@ exports.packing = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
+
+// --- "Complete the Look" -----------------------------------------------
+
+const NEUTRALS = ['black', 'white', 'grey', 'gray', 'beige', 'navy', 'brown', 'cream', 'tan', 'charcoal', 'denim'];
+
+// Small hand-built complementary-color table — not a real color-theory engine,
+// just enough to bias suggestions toward combos that usually look good.
+const COMPLEMENTARY_PAIRS = {
+  blue: ['orange', 'brown', 'tan', 'beige', 'white'],
+  red: ['black', 'grey', 'navy', 'white'],
+  green: ['beige', 'brown', 'white', 'cream'],
+  yellow: ['navy', 'blue', 'grey'],
+  pink: ['grey', 'navy', 'blue', 'white'],
+  orange: ['blue', 'navy', 'white'],
+  purple: ['grey', 'beige', 'white'],
+  maroon: ['beige', 'grey', 'white'],
+};
+
+function colorScore(a, b) {
+  if (!a || !b) return 1; // unknown colors: neutral score, don't penalize
+  const x = a.toLowerCase();
+  const y = b.toLowerCase();
+  if (x === y) return 1;
+  if (NEUTRALS.some((n) => x.includes(n)) || NEUTRALS.some((n) => y.includes(n))) return 2;
+  for (const [key, partners] of Object.entries(COMPLEMENTARY_PAIRS)) {
+    if (x.includes(key) && partners.some((p) => y.includes(p))) return 2;
+    if (y.includes(key) && partners.some((p) => x.includes(p))) return 2;
+  }
+  return 0;
+}
+
+// Which categories "complete" an item of a given category.
+const COMPLEMENT_CATEGORIES = {
+  top: ['bottom', 'shoes', 'outerwear', 'accessory'],
+  bottom: ['top', 'shoes', 'accessory'],
+  dress: ['shoes', 'accessory', 'outerwear', 'bag'],
+  outerwear: ['top', 'bottom', 'shoes'],
+  shoes: ['top', 'bottom'],
+  accessory: ['top', 'bottom'],
+  bag: ['top', 'bottom', 'dress'],
+};
+
+// GET /api/suggestion/complete-look/:itemId
+// Returns up to 3 suggestions per complementary category, ranked by color
+// harmony + shared occasion tags + how long it's been since the item was worn.
+exports.completeLook = async (req, res) => {
+  try {
+    const source = await ClothingItem.findOne({ _id: req.params.itemId, user: req.user._id });
+    if (!source) return res.status(404).json({ message: 'Item not found' });
+
+    const targetCategories = COMPLEMENT_CATEGORIES[source.category] || [];
+    const results = {};
+
+    for (const cat of targetCategories) {
+      const candidates = await ClothingItem.find({
+        user: req.user._id,
+        category: cat,
+        inLaundry: false,
+        _id: { $ne: source._id },
+      });
+
+      const scored = candidates
+        .map((c) => {
+          let score = colorScore(source.color, c.color);
+          const sharedOccasions = (source.occasions || []).filter((o) => (c.occasions || []).includes(o));
+          score += sharedOccasions.length * 2;
+          if (source.season === c.season || c.season === 'all' || source.season === 'all') score += 1;
+          if (!c.wearCount) score += 0.5; // give under-worn pieces a small nudge
+          return { item: c, score };
+        })
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 3)
+        .map((s) => s.item);
+
+      if (scored.length) results[cat] = scored;
+    }
+
+    res.json({ item: source, suggestions: results });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};

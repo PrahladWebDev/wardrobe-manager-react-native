@@ -11,6 +11,11 @@ import { colors, radius, typography, spacing } from '../theme/colors';
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
 
+// Heatmap shading for the wear calendar — lighter accent for a single wear,
+// full accent (with white text) for 3+ wears in a day.
+const HEAT_COLORS = { 1: colors.accentSoft, 2: '#DE9E7E', 3: colors.accent };
+const heatBucket = (count) => (count >= 3 ? 3 : count);
+
 function WornRow({ item }) {
   return (
     <View style={styles.pieceRow}>
@@ -71,9 +76,24 @@ export default function CalendarScreen() {
       const { data } = await api.get('/stats/wear-calendar', { params: { month: m } });
       const marks = {};
       (data.days || []).forEach((d) => {
-        marks[d.date] = { marked: true, dotColor: colors.accent };
+        const bucket = heatBucket(d.count);
+        marks[d.date] = {
+          customStyles: {
+            container: { backgroundColor: HEAT_COLORS[bucket], borderRadius: 8 },
+            text: { color: bucket === 3 ? '#fff' : colors.text, fontWeight: '700' },
+          },
+        };
       });
-      setMarkedDates((prev) => ({ ...marks, [selectedDate]: { ...(marks[selectedDate] || {}), selected: true, selectedColor: colors.accent } }));
+      setMarkedDates((prev) => ({
+        ...marks,
+        [selectedDate]: {
+          ...(marks[selectedDate] || {}),
+          customStyles: {
+            container: { backgroundColor: colors.accent, borderRadius: 8, borderWidth: 2, borderColor: colors.text },
+            text: { color: '#fff', fontWeight: '700' },
+          },
+        },
+      }));
     } catch (err) {
       console.warn(err.message);
     } finally {
@@ -102,8 +122,18 @@ export default function CalendarScreen() {
     setSelectedDate(day.dateString);
     setMarkedDates((prev) => {
       const next = {};
-      Object.keys(prev).forEach((k) => { next[k] = { ...prev[k], selected: false }; });
-      next[day.dateString] = { ...(next[day.dateString] || {}), selected: true, selectedColor: colors.accent };
+      Object.keys(prev).forEach((k) => {
+        const { customStyles, ...rest } = prev[k];
+        // Strip the previous selection border, keep the heatmap color if any.
+        next[k] = customStyles ? { customStyles: { container: { ...customStyles.container, borderWidth: 0 }, text: customStyles.text } } : rest;
+      });
+      const existing = next[day.dateString]?.customStyles;
+      next[day.dateString] = {
+        customStyles: {
+          container: { backgroundColor: existing?.container?.backgroundColor || colors.accent, borderRadius: 8, borderWidth: 2, borderColor: colors.text },
+          text: existing?.text || { color: '#fff', fontWeight: '700' },
+        },
+      };
       return next;
     });
     loadLogsForDate(day.dateString);
@@ -134,6 +164,7 @@ export default function CalendarScreen() {
           onDayPress={onDayPress}
           onMonthChange={onMonthChange}
           markedDates={markedDates}
+          markingType="custom"
           theme={{
             backgroundColor: colors.surface,
             calendarBackground: colors.surface,
@@ -152,6 +183,14 @@ export default function CalendarScreen() {
           }}
         />
       </Card>
+
+      <View style={styles.legendRow}>
+        <Text style={typography.label}>FEWER WEARS</Text>
+        <View style={[styles.legendDot, { backgroundColor: HEAT_COLORS[1] }]} />
+        <View style={[styles.legendDot, { backgroundColor: HEAT_COLORS[2] }]} />
+        <View style={[styles.legendDot, { backgroundColor: HEAT_COLORS[3] }]} />
+        <Text style={typography.label}>MORE WEARS</Text>
+      </View>
 
       <Text style={[typography.h3, { marginTop: spacing(6), marginBottom: 12 }]}>
         {isToday ? 'Today' : selectedLabel}
@@ -172,6 +211,8 @@ export default function CalendarScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
+  legendRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 12, gap: 6 },
+  legendDot: { width: 14, height: 14, borderRadius: 4, marginHorizontal: 2 },
   entryHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
   pieceRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
   pieceImg: {

@@ -8,6 +8,7 @@ import Button from '../components/Button';
 import Chip from '../components/Chip';
 import Card from '../components/Card';
 import { colors, radius, typography, spacing } from '../theme/colors';
+import { scheduleTripReminder } from '../utils/notifications';
 
 const OCCASIONS = ['casual', 'work', 'formal', 'travel', 'party'];
 
@@ -43,6 +44,7 @@ export default function PackingListScreen() {
   const [startDate, setStartDate] = useState(toISODate(today));
   const [endDate, setEndDate] = useState(toISODate(nextWeek));
   const [occasion, setOccasion] = useState('travel');
+  const [remindMe, setRemindMe] = useState(true);
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -58,6 +60,13 @@ export default function PackingListScreen() {
       }
       const { data } = await api.post('/suggestion/packing', { startDate, endDate, occasion, lat, lon });
       setResult(data);
+
+      if (remindMe) {
+        const scheduled = await scheduleTripReminder(startDate, occasion);
+        if (!scheduled) {
+          Alert.alert('Heads up', 'Could not schedule a reminder (permission denied, or the trip already starts too soon).');
+        }
+      }
     } catch (err) {
       Alert.alert('Could not generate packing list', err.message);
     } finally {
@@ -81,6 +90,11 @@ export default function PackingListScreen() {
         ))}
       </View>
 
+      <TouchableOpacity style={styles.remindRow} onPress={() => setRemindMe((v) => !v)} activeOpacity={0.8}>
+        <Ionicons name={remindMe ? 'checkbox' : 'square-outline'} size={20} color={remindMe ? colors.accent : colors.textFaint} />
+        <Text style={[typography.bodyMuted, { marginLeft: 8 }]}>Remind me the evening before to pack</Text>
+      </TouchableOpacity>
+
       <Button title="Generate Packing List" onPress={generate} loading={loading} />
 
       {result && (
@@ -102,6 +116,7 @@ export default function PackingListScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
+  remindRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
   piece: { width: 80, marginRight: 10 },
   pieceImg: {
     width: 70, height: 70, borderRadius: radius.sm, backgroundColor: colors.surfaceAlt,
