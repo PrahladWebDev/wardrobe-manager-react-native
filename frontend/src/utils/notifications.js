@@ -1,4 +1,5 @@
 import * as Notifications from 'expo-notifications';
+import { SchedulableTriggerInputTypes } from 'expo-notifications';
 import { Platform } from 'react-native';
 
 // NOTE: these are LOCAL, on-device notifications (Notifications.scheduleNotificationAsync),
@@ -44,7 +45,11 @@ export async function scheduleDailyLogReminder(hour = 20, minute = 0) {
       title: "What'd you wear today?",
       body: "Log today's outfit to keep your wardrobe stats accurate.",
     },
-    trigger: { hour, minute, repeats: true },
+    trigger: {
+      type: SchedulableTriggerInputTypes.DAILY,
+      hour,
+      minute,
+    },
   });
   return true;
 }
@@ -73,7 +78,10 @@ export async function scheduleTripReminder(startDateISO, occasion = 'trip') {
       title: 'Trip tomorrow ✈️',
       body: `Don't forget to pack — your ${occasion} trip starts tomorrow!`,
     },
-    trigger: reminderTime,
+    trigger: {
+      type: SchedulableTriggerInputTypes.DATE,
+      date: reminderTime,
+    },
   });
   return true;
 }
