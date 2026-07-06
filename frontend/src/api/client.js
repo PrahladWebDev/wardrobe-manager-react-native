@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // Fallback used only if the person hasn't configured a server yet in the app's
 // Settings screen (Profile -> Server Settings). No source-code edit required to
 // run this app anymore — everything is configurable from the UI.
-export const DEFAULT_BASE_URL = 'http://192.168.1.63:5000';
+export const DEFAULT_BASE_URL = 'https://api.wardrobe.prahladsingh.in';
 const STORAGE_KEY = 'wardrobe_api_base_url';
 
 let cachedBaseURL = null;
