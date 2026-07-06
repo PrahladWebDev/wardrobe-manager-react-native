@@ -1,0 +1,36 @@
+name: Deploy Wardrobe Manager Backend
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'backend/**'
+
+jobs:
+  deploy-backend:
+    name: Deploy Backend
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: SSH into VPS and deploy backend
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT }}
+          script: |
+            echo "=== Pulling latest code ==="
+            cd /home/prahlad/wardrobe-manager
+            git pull origin main
+
+            echo "=== Installing backend dependencies ==="
+            cd /home/prahlad/wardrobe-manager/backend
+            npm install --omit=dev
+
+            echo "=== Restarting API with PM2 ==="
+            pm2 reload wardrobe-api --update-env
+
+            echo "=== Deploy status ==="
+            pm2 status
