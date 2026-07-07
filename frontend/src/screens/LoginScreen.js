@@ -8,8 +8,8 @@ import { colors, typography, spacing } from '../theme/colors';
 
 export default function LoginScreen({ navigation }) {
   const { login } = useAuth();
-  const [email, setEmail] = useState('demo@wardrobe.app');
-  const [password, setPassword] = useState('demo1234');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
@@ -38,20 +38,11 @@ export default function LoginScreen({ navigation }) {
 
         <Button title="Log In" onPress={handleLogin} loading={loading} style={{ marginTop: spacing(2) }} />
 
-        <Text style={styles.hint}>Demo account is pre-filled — just tap Log In.</Text>
-
         <Button
           title="Create an account"
           variant="ghost"
           onPress={() => navigation.navigate('Register')}
           style={{ marginTop: spacing(3) }}
-        />
-
-        <Button
-          title="Server Settings"
-          variant="ghost"
-          onPress={() => navigation.navigate('Settings')}
-          style={{ marginTop: 10 }}
         />
       </ScrollView>
     </KeyboardAvoidingView>

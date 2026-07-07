@@ -90,14 +90,6 @@ export default function ProfileScreen() {
         </Card>
       </TouchableOpacity>
 
-      <TouchableOpacity onPress={() => navigation.navigate('Settings')}>
-        <Card style={[styles.menuCard, { marginTop: 12 }]}>
-          <Ionicons name="server-outline" size={20} color={colors.accent} />
-          <Text style={[typography.h3, { marginLeft: 12, flex: 1 }]}>Server Settings</Text>
-          <Ionicons name="chevron-forward" size={18} color={colors.textFaint} />
-        </Card>
-      </TouchableOpacity>
-
       <Card style={{ marginTop: 16 }}>
         <Text style={[typography.h3, { marginBottom: 12 }]}>Home City</Text>
         <Input value={homeCity} onChangeText={setHomeCity} placeholder="e.g. Gurgaon" />
