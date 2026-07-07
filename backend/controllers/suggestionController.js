@@ -1,5 +1,14 @@
 const ClothingItem = require('../models/ClothingItem');
+const PackingList = require('../models/PackingList');
 const { getWeather, seasonFromWeather } = require('../utils/weather');
+
+// Build an occasion filter that also matches items with no occasion tags at
+// all, instead of silently excluding every untagged item. Previously
+// `baseFilter.occasions = occasion.toLowerCase()` required an exact array
+// match, so a closet with no occasion tags (the default) always returned
+// empty results.
+const occasionOr = (occasion) =>
+  occasion ? [{ occasions: occasion.toLowerCase() }, { occasions: { $size: 0 } }] : null;
 
 const pick = (arr) => (arr.length ? arr[Math.floor(Math.random() * arr.length)] : null);
 
@@ -20,16 +29,16 @@ exports.today = async (req, res) => {
     const weather = await getWeather(lat, lon);
     const targetSeason = seasonFromWeather(weather);
 
-    const baseFilter = { user: req.user._id, inLaundry: false };
-    if (occasion) baseFilter.occasions = occasion.toLowerCase();
-
     const seasonOr = [{ season: targetSeason }, { season: 'all' }];
+    const and = [{ user: req.user._id, inLaundry: false }, { $or: seasonOr }];
+    const occOr = occasionOr(occasion);
+    if (occOr) and.push({ $or: occOr });
 
     const [tops, bottoms, shoes, outerwear] = await Promise.all([
-      ClothingItem.find({ ...baseFilter, category: 'top', $or: seasonOr }),
-      ClothingItem.find({ ...baseFilter, category: 'bottom', $or: seasonOr }),
-      ClothingItem.find({ ...baseFilter, category: 'shoes', $or: seasonOr }),
-      ClothingItem.find({ ...baseFilter, category: 'outerwear', $or: seasonOr }),
+      ClothingItem.find({ $and: and, category: 'top' }),
+      ClothingItem.find({ $and: and, category: 'bottom' }),
+      ClothingItem.find({ $and: and, category: 'shoes' }),
+      ClothingItem.find({ $and: and, category: 'outerwear' }),
     ]);
 
     const rankedTops = rankByFreshness(tops);
@@ -68,15 +77,19 @@ exports.packing = async (req, res) => {
     const weather = await getWeather(lat, lon);
     const targetSeason = seasonFromWeather(weather);
 
-    const baseFilter = { user: req.user._id, inLaundry: false, $or: [{ season: targetSeason }, { season: 'all' }] };
-    if (occasion) baseFilter.occasions = occasion.toLowerCase();
+    const and = [
+      { user: req.user._id, inLaundry: false },
+      { $or: [{ season: targetSeason }, { season: 'all' }] },
+    ];
+    const occOr = occasionOr(occasion);
+    if (occOr) and.push({ $or: occOr });
 
     const [tops, bottoms, shoes, outerwear, accessories] = await Promise.all([
-      ClothingItem.find({ ...baseFilter, category: 'top' }),
-      ClothingItem.find({ ...baseFilter, category: 'bottom' }),
-      ClothingItem.find({ ...baseFilter, category: 'shoes' }),
-      ClothingItem.find({ ...baseFilter, category: 'outerwear' }),
-      ClothingItem.find({ ...baseFilter, category: 'accessory' }),
+      ClothingItem.find({ $and: and, category: 'top' }),
+      ClothingItem.find({ $and: and, category: 'bottom' }),
+      ClothingItem.find({ $and: and, category: 'shoes' }),
+      ClothingItem.find({ $and: and, category: 'outerwear' }),
+      ClothingItem.find({ $and: and, category: 'accessory' }),
     ]);
 
     // Simple packing heuristic: ~1 top per day (max stock available), bottoms reused ~2 days,
@@ -93,7 +106,56 @@ exports.packing = async (req, res) => {
       accessories: rankByFreshness(accessories).slice(0, 3),
     };
 
-    res.json({ days, weather, targetSeason, packingList });
+    await PackingList.findOneAndUpdate(
+      { user: req.user._id },
+      {
+        user: req.user._id,
+        startDate,
+        endDate,
+        days,
+        occasion: occasion ? occasion.toLowerCase() : '',
+        weather,
+        targetSeason,
+        tops: packingList.tops.map((i) => i._id),
+        bottoms: packingList.bottoms.map((i) => i._id),
+        shoes: packingList.shoes.map((i) => i._id),
+        outerwear: packingList.outerwear.map((i) => i._id),
+        accessories: packingList.accessories.map((i) => i._id),
+      },
+      { upsert: true }
+    );
+
+    res.json({ days, weather, targetSeason, occasion: occasion || '', packingList });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// GET /api/suggestion/packing/latest
+// Returns the most recently generated packing list for this user, if any,
+// so the screen can restore it after being reopened.
+exports.getLatestPacking = async (req, res) => {
+  try {
+    const saved = await PackingList.findOne({ user: req.user._id }).populate(
+      'tops bottoms shoes outerwear accessories'
+    );
+    if (!saved) return res.json(null);
+
+    res.json({
+      startDate: saved.startDate,
+      endDate: saved.endDate,
+      days: saved.days,
+      occasion: saved.occasion,
+      weather: saved.weather,
+      targetSeason: saved.targetSeason,
+      packingList: {
+        tops: saved.tops,
+        bottoms: saved.bottoms,
+        shoes: saved.shoes,
+        outerwear: saved.outerwear,
+        accessories: saved.accessories,
+      },
+    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

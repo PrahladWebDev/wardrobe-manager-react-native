@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Image, Alert, TouchableOpacity, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
@@ -47,6 +47,29 @@ export default function PackingListScreen() {
   const [remindMe, setRemindMe] = useState(true);
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [restoring, setRestoring] = useState(true);
+
+  // Restore the last generated packing list (if any) so it doesn't disappear
+  // when you leave this screen and come back.
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data } = await api.get('/suggestion/packing/latest');
+        if (data) {
+          setResult(data);
+          setStartDate(data.startDate);
+          setEndDate(data.endDate);
+          if (data.occasion) setOccasion(data.occasion);
+        }
+      } catch (err) {
+        // No saved list yet, or failed to load — fine, just start fresh.
+      } finally {
+        setRestoring(false);
+      }
+    })();
+  }, []);
+
+  const hasAnyItems = result && Object.values(result.packingList).some((arr) => arr && arr.length > 0);
 
   const generate = async () => {
     setLoading(true);
@@ -97,17 +120,31 @@ export default function PackingListScreen() {
 
       <Button title="Generate Packing List" onPress={generate} loading={loading} />
 
-      {result && (
+      {restoring && (
+        <Text style={[typography.bodyMuted, { marginTop: 16, textAlign: 'center' }]}>Loading your last packing list…</Text>
+      )}
+
+      {!restoring && result && (
         <Card style={{ marginTop: 20 }}>
           <Text style={[typography.h3, { marginBottom: 4 }]}>{result.days}-day trip</Text>
           <Text style={[typography.bodyMuted, { marginBottom: 16 }]}>
             Expect ~{Math.round(result.weather.tempC)}°C, {result.weather.condition} · packing for {result.targetSeason}
           </Text>
-          <Section title="Tops" items={result.packingList.tops} />
-          <Section title="Bottoms" items={result.packingList.bottoms} />
-          <Section title="Shoes" items={result.packingList.shoes} />
-          <Section title="Outerwear" items={result.packingList.outerwear} />
-          <Section title="Accessories" items={result.packingList.accessories} />
+
+          {hasAnyItems ? (
+            <>
+              <Section title="Tops" items={result.packingList.tops} />
+              <Section title="Bottoms" items={result.packingList.bottoms} />
+              <Section title="Shoes" items={result.packingList.shoes} />
+              <Section title="Outerwear" items={result.packingList.outerwear} />
+              <Section title="Accessories" items={result.packingList.accessories} />
+            </>
+          ) : (
+            <Text style={typography.bodyMuted}>
+              No matching clothes found for this trip. This usually means your closet items aren't tagged for "{result.occasion || occasion}"
+              or the current season, or they're marked as in laundry. Try adding occasion tags to a few items, or check they aren't in your laundry list.
+            </Text>
+          )}
         </Card>
       )}
     </ScrollView>
