@@ -22,11 +22,11 @@ jobs:
           port: ${{ secrets.VPS_PORT }}
           script: |
             echo "=== Pulling latest code ==="
-            cd /home/prahlad/wardrobe-manager
+            cd /var/www/projects/wardrobe
             git pull origin main
 
             echo "=== Installing backend dependencies ==="
-            cd /home/prahlad/wardrobe-manager/backend
+            cd /var/www/projects/wardrobe/backend
             npm install --omit=dev
 
             echo "=== Restarting API with PM2 ==="
