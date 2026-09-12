@@ -29,7 +29,7 @@
       ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#0F1115"
+        "backgroundColor": "#FFFFFF"
       }
     },
     "web": {
