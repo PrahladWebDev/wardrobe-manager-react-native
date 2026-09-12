@@ -1,16 +1,20 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import { colors, radius, shadow } from '../theme/colors';
+import { useTheme } from '../context/ThemeContext';
 
 export default function Card({ children, style }) {
+  const theme = useTheme();
+  const styles = makeStyles(theme);
   return <View style={[styles.card, style]}>{children}</View>;
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (theme) => StyleSheet.create({
   card: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.radius.lg,
+    borderWidth: theme.border.width,
+    borderColor: theme.colors.text,
     padding: 16,
-    ...shadow.card,
+    ...theme.shadow.card,
   },
 });

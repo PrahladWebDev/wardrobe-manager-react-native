@@ -5,11 +5,11 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#FBF7F0"
+      "backgroundColor": "#F7F1E4"
     },
     "assetBundlePatterns": [
       "assets/**/*"
@@ -29,7 +29,7 @@
       ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#C1633B"
+        "backgroundColor": "#0F1115"
       }
     },
     "web": {
@@ -56,7 +56,8 @@
         }
       ],
       "expo-notifications",
-      "expo-font"
+      "expo-font",
+      "expo-status-bar"
     ],
     "extra": {
       "eas": {

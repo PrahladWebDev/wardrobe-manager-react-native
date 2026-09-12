@@ -145,6 +145,58 @@ exports.wearOnDate = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
+// GET /api/stats/insights
+// Bundles the "Wardrobe Insights" data: color + season breakdowns, least-worn
+// pieces, and a utilization rate (% of closet worn at least once in the last
+// 30 days) — the kind of thing that nudges "wear what you own" behavior.
+exports.insights = async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    const byColor = await ClothingItem.aggregate([
+      { $match: { user: userId } },
+      {
+        $addFields: {
+          colorKey: {
+            $cond: [
+              { $eq: [{ $trim: { input: { $toLower: '$color' } } }, ''] },
+              'unspecified',
+              { $trim: { input: { $toLower: '$color' } } },
+            ],
+          },
+        },
+      },
+      { $group: { _id: '$colorKey', count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+      { $limit: 12 },
+      { $project: { _id: 0, color: '$_id', count: 1 } },
+    ]);
+
+    const bySeason = await ClothingItem.aggregate([
+      { $match: { user: userId } },
+      { $group: { _id: '$season', count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+      { $project: { _id: 0, season: '$_id', count: 1 } },
+    ]);
+
+    const leastWorn = await ClothingItem.find({ user: userId })
+      .sort({ wearCount: 1, createdAt: 1 })
+      .limit(6);
+
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const [totalItems, wornRecently] = await Promise.all([
+      ClothingItem.countDocuments({ user: userId }),
+      ClothingItem.countDocuments({ user: userId, lastWornAt: { $gte: thirtyDaysAgo } }),
+    ]);
+    const utilizationRate = totalItems ? Math.round((wornRecently / totalItems) * 100) : 0;
+
+    res.json({ byColor, bySeason, leastWorn, utilization: { totalItems, wornRecently, rate: utilizationRate } });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
 // GET /api/stats/wear-timeline?days=30
 exports.wearTimeline = async (req, res) => {
   try {

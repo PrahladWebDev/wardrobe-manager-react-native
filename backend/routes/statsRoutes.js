@@ -2,11 +2,12 @@ const express = require('express');
 const router = express.Router();
 const { protect } = require('../middleware/auth');
 const {
-  overview, costPerWear, mostWorn, leastWorn, wearTimeline, wearCalendar, wearOnDate,
+  overview, costPerWear, mostWorn, leastWorn, wearTimeline, wearCalendar, wearOnDate, insights,
 } = require('../controllers/statsController');
 
 router.use(protect);
 router.get('/overview', overview);
+router.get('/insights', insights);
 router.get('/cost-per-wear', costPerWear);
 router.get('/most-worn', mostWorn);
 router.get('/least-worn', leastWorn);

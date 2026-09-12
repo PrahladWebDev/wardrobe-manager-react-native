@@ -1,10 +1,10 @@
 const Outfit = require('../models/Outfit');
 const WearLog = require('../models/WearLog');
 
-// GET /api/outfits?page=&limit=
+// GET /api/outfits?page=&limit=&sort=fresh
 exports.getOutfits = async (req, res) => {
   try {
-    const { occasion, season, favorite } = req.query;
+    const { occasion, season, favorite, sort } = req.query;
     const filter = { user: req.user._id };
     if (occasion) filter.occasion = occasion.toLowerCase();
     if (season) filter.season = season;
@@ -14,13 +14,28 @@ exports.getOutfits = async (req, res) => {
     const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 20));
     const skip = (page - 1) * limit;
 
+    // "fresh" sort surfaces least-recently-worn outfits first — this is what
+    // Outfit Rotation uses so re-wearing the same combo doesn't dominate the list.
+    const sortSpec = sort === 'fresh' ? { lastWornAt: 1, createdAt: -1 } : { createdAt: -1 };
+
     const [outfits, total] = await Promise.all([
-      Outfit.find(filter).populate('items').sort({ createdAt: -1 }).skip(skip).limit(limit),
+      Outfit.find(filter).populate('items').sort(sortSpec).skip(skip).limit(limit),
       Outfit.countDocuments(filter),
     ]);
 
+    const rotationDays = req.user.rotationDays || 0;
+    const now = Date.now();
+    const withRotation = outfits.map((o) => {
+      const obj = o.toObject();
+      obj.inCooldown = !!(
+        rotationDays && o.lastWornAt && now - new Date(o.lastWornAt).getTime() < rotationDays * 24 * 60 * 60 * 1000
+      );
+      return obj;
+    });
+
     res.json({
-      outfits,
+      outfits: withRotation,
+      rotationDays,
       pagination: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)), hasMore: skip + outfits.length < total },
     });
   } catch (err) {

@@ -9,6 +9,7 @@ const outfitRoutes = require('./routes/outfitRoutes');
 const statsRoutes = require('./routes/statsRoutes');
 const suggestionRoutes = require('./routes/suggestionRoutes');
 const pollRoutes = require('./routes/pollRoutes');
+const wishlistRoutes = require('./routes/wishlistRoutes');
 
 const app = express();
 
@@ -24,6 +25,7 @@ app.use('/api/outfits', outfitRoutes);
 app.use('/api/stats', statsRoutes);
 app.use('/api/suggestion', suggestionRoutes);
 app.use('/api/polls', pollRoutes);
+app.use('/api/wishlist', wishlistRoutes);
 
 // 404
 app.use((req, res) => res.status(404).json({ message: 'Route not found' }));

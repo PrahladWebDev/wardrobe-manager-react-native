@@ -4,9 +4,11 @@ import { Ionicons } from '@expo/vector-icons';
 import api from '../api/client';
 import Input from '../components/Input';
 import Button from '../components/Button';
-import { colors, radius, typography, shadow } from '../theme/colors';
+import { useTheme } from '../context/ThemeContext';
 
 export default function CreatePollScreen({ navigation }) {
+  const theme = useTheme();
+  const styles = makeStyles(theme);
   const [outfits, setOutfits] = useState([]);
   const [selected, setSelected] = useState([]);
   const [question, setQuestion] = useState('Which outfit should I wear?');
@@ -42,7 +44,7 @@ export default function CreatePollScreen({ navigation }) {
     <View style={styles.container}>
       <View style={{ padding: 20, paddingBottom: 10 }}>
         <Input label="Question" value={question} onChangeText={setQuestion} placeholder="Which outfit should I wear?" />
-        <Text style={typography.label}>SELECT 2+ OUTFITS</Text>
+        <Text style={theme.typography.label}>SELECT 2+ OUTFITS</Text>
       </View>
       <FlatList
         data={outfits}
@@ -61,13 +63,13 @@ export default function CreatePollScreen({ navigation }) {
             >
               <View style={styles.cardImg}>
                 {cover ? <Image source={{ uri: cover }} style={{ width: '100%', height: '100%' }} /> : (
-                  <Ionicons name="albums-outline" size={24} color={colors.textFaint} />
+                  <Ionicons name="albums-outline" size={24} color={theme.colors.textFaint} />
                 )}
               </View>
-              <Text style={typography.h3} numberOfLines={1}>{item.name}</Text>
+              <Text style={theme.typography.h3} numberOfLines={1}>{item.name}</Text>
               {isSelected && (
                 <View style={styles.checkBadge}>
-                  <Ionicons name="checkmark" size={14} color="#fff" />
+                  <Ionicons name="checkmark" size={14} color={theme.colors.onAccent} />
                 </View>
               )}
             </TouchableOpacity>
@@ -81,23 +83,23 @@ export default function CreatePollScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg },
+const makeStyles = (theme) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: theme.colors.bg },
   card: {
-    flex: 1, margin: 6, backgroundColor: colors.surface, borderRadius: radius.lg,
-    padding: 10, ...shadow.subtle, borderWidth: 2, borderColor: 'transparent',
+    flex: 1, margin: 6, backgroundColor: theme.colors.surface, borderRadius: theme.radius.lg,
+    padding: 10, ...theme.shadow.subtle, borderWidth: 2, borderColor: 'transparent',
   },
-  cardSelected: { borderColor: colors.accent },
+  cardSelected: { borderColor: theme.colors.accent },
   cardImg: {
-    width: '100%', height: 110, borderRadius: radius.md, backgroundColor: colors.surfaceAlt,
+    width: '100%', height: 110, borderRadius: theme.radius.md, backgroundColor: theme.colors.surfaceAlt,
     alignItems: 'center', justifyContent: 'center', marginBottom: 8, overflow: 'hidden',
   },
   checkBadge: {
-    position: 'absolute', top: 8, right: 8, backgroundColor: colors.accent,
-    borderRadius: radius.pill, width: 22, height: 22, alignItems: 'center', justifyContent: 'center',
+    position: 'absolute', top: 8, right: 8, backgroundColor: theme.colors.accent,
+    borderRadius: theme.radius.pill, width: 22, height: 22, alignItems: 'center', justifyContent: 'center',
   },
   footer: {
     position: 'absolute', bottom: 0, left: 0, right: 0, padding: 20,
-    backgroundColor: colors.bg, borderTopWidth: 1, borderTopColor: colors.border,
+    backgroundColor: theme.colors.bg, borderTopWidth: 1, borderTopColor: theme.colors.border,
   },
 });

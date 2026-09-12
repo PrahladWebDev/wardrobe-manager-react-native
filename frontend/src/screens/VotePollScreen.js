@@ -5,10 +5,12 @@ import api from '../api/client';
 import Input from '../components/Input';
 import Button from '../components/Button';
 import Card from '../components/Card';
-import { colors, radius, typography, spacing } from '../theme/colors';
+import { useTheme } from '../context/ThemeContext';
 import { getDeviceId } from '../utils/deviceId';
 
 export default function VotePollScreen() {
+  const theme = useTheme();
+  const styles = makeStyles(theme);
   const [code, setCode] = useState('');
   const [poll, setPoll] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -46,16 +48,16 @@ export default function VotePollScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ padding: 20, paddingBottom: 60 }}>
-      <Text style={[typography.bodyMuted, { marginBottom: 16 }]}>
+      <Text style={[theme.typography.bodyMuted, { marginBottom: 16 }]}>
         Got a poll code from a friend? Enter it below to see the outfit options and vote.
       </Text>
       <Input label="Poll Code" value={code} onChangeText={(t) => setCode(t.toUpperCase())} placeholder="e.g. F7K2QX" autoCapitalize="characters" />
       <Button title="Find Poll" onPress={lookup} loading={loading} />
 
       {poll && (
-        <View style={{ marginTop: spacing(6) }}>
-          <Text style={typography.h2}>{poll.question}</Text>
-          {!poll.isOpen && <Text style={[typography.bodyMuted, { marginBottom: 12 }]}>This poll is closed.</Text>}
+        <View style={{ marginTop: theme.spacing(6) }}>
+          <Text style={theme.typography.h2}>{poll.question}</Text>
+          {!poll.isOpen && <Text style={[theme.typography.bodyMuted, { marginBottom: 12 }]}>This poll is closed.</Text>}
 
           {poll.options.map((opt) => {
             const cover = opt.outfit?.items?.[0]?.imageUrl;
@@ -70,21 +72,21 @@ export default function VotePollScreen() {
                 <Card style={[styles.optionCard, isVoted && styles.optionVoted]}>
                   <View style={styles.thumb}>
                     {cover ? <Image source={{ uri: cover }} style={{ width: '100%', height: '100%' }} /> : (
-                      <Ionicons name="albums-outline" size={22} color={colors.textFaint} />
+                      <Ionicons name="albums-outline" size={22} color={theme.colors.textFaint} />
                     )}
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={typography.h3}>{opt.label}</Text>
-                    {votedOptionId && <Text style={typography.bodyMuted}>{opt.votes} votes</Text>}
+                    <Text style={theme.typography.h3}>{opt.label}</Text>
+                    {votedOptionId && <Text style={theme.typography.bodyMuted}>{opt.votes} votes</Text>}
                   </View>
-                  {isVoted && <Ionicons name="checkmark-circle" size={22} color={colors.success} />}
+                  {isVoted && <Ionicons name="checkmark-circle" size={22} color={theme.colors.success} />}
                 </Card>
               </TouchableOpacity>
             );
           })}
 
           {votedOptionId && (
-            <Text style={[typography.bodyMuted, { marginTop: 8 }]}>Thanks for voting! 🎉</Text>
+            <Text style={[theme.typography.bodyMuted, { marginTop: 8 }]}>Thanks for voting! 🎉</Text>
           )}
         </View>
       )}
@@ -92,12 +94,12 @@ export default function VotePollScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg },
+const makeStyles = (theme) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: theme.colors.bg },
   optionCard: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
-  optionVoted: { borderWidth: 2, borderColor: colors.success },
+  optionVoted: { borderWidth: 2, borderColor: theme.colors.success },
   thumb: {
-    width: 56, height: 56, borderRadius: radius.sm, backgroundColor: colors.surfaceAlt,
+    width: 56, height: 56, borderRadius: theme.radius.sm, backgroundColor: theme.colors.surfaceAlt,
     alignItems: 'center', justifyContent: 'center', marginRight: 12, overflow: 'hidden',
   },
 });

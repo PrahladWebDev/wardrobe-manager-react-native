@@ -3,6 +3,8 @@ const mongoose = require('mongoose');
 const CATEGORIES = ['top', 'bottom', 'dress', 'outerwear', 'shoes', 'accessory', 'bag'];
 const SEASONS = ['summer', 'winter', 'monsoon', 'all'];
 
+const REPAIR_STATUSES = ['none', 'needs_repair', 'in_progress', 'repaired'];
+
 const clothingItemSchema = new mongoose.Schema(
   {
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
@@ -24,6 +26,14 @@ const clothingItemSchema = new mongoose.Schema(
     inLaundry: { type: Boolean, default: false },
     favorite: { type: Boolean, default: false },
     notes: { type: String, default: '' },
+    // Repair Tracker: tracks a damaged item through to being fixed again.
+    repair: {
+      status: { type: String, enum: REPAIR_STATUSES, default: 'none' },
+      notes: { type: String, default: '' },
+      cost: { type: Number, default: 0, min: 0 },
+      reportedAt: { type: Date, default: null },
+      resolvedAt: { type: Date, default: null },
+    },
   },
   { timestamps: true }
 );
@@ -40,3 +50,4 @@ clothingItemSchema.set('toObject', { virtuals: true });
 module.exports = mongoose.model('ClothingItem', clothingItemSchema);
 module.exports.CATEGORIES = CATEGORIES;
 module.exports.SEASONS = SEASONS;
+module.exports.REPAIR_STATUSES = REPAIR_STATUSES;

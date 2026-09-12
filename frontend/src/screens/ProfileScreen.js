@@ -8,9 +8,11 @@ import { useAuth } from '../context/AuthContext';
 import Card from '../components/Card';
 import Button from '../components/Button';
 import Input from '../components/Input';
-import { colors, radius, typography, spacing } from '../theme/colors';
+import { useTheme } from '../context/ThemeContext';
 
 export default function ProfileScreen() {
+  const theme = useTheme();
+  const styles = makeStyles(theme);
   const { user, logout, updateProfile } = useAuth();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
@@ -60,62 +62,62 @@ export default function ProfileScreen() {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ padding: 20, paddingTop: insets.top + 20, paddingBottom: 60 }}>
+    <ScrollView style={styles.container} contentContainerStyle={{ padding: 20, paddingTop: insets.top + 20, paddingBottom: 130 }}>
       <View style={styles.avatarRow}>
         <TouchableOpacity onPress={handlePickAvatar} disabled={uploadingAvatar} activeOpacity={0.8}>
           <View style={styles.avatar}>
             {uploadingAvatar ? (
-              <ActivityIndicator color={colors.accent} />
+              <ActivityIndicator color={theme.colors.accent} />
             ) : user?.avatarUrl ? (
               <Image source={{ uri: user.avatarUrl }} style={styles.avatarImage} />
             ) : (
-              <Ionicons name="person" size={30} color={colors.accent} />
+              <Ionicons name="person" size={30} color={theme.colors.accent} />
             )}
           </View>
           <View style={styles.avatarBadge}>
-            <Ionicons name="camera" size={13} color="#fff" />
+            <Ionicons name="camera" size={13} color={theme.colors.onAccent} />
           </View>
         </TouchableOpacity>
         <View style={{ marginLeft: 14 }}>
-          <Text style={typography.h2}>{user?.name}</Text>
-          <Text style={typography.bodyMuted}>{user?.email}</Text>
+          <Text style={theme.typography.h2}>{user?.name}</Text>
+          <Text style={theme.typography.bodyMuted}>{user?.email}</Text>
         </View>
       </View>
 
       <TouchableOpacity onPress={() => navigation.navigate('PackingList')}>
         <Card style={styles.menuCard}>
-          <Ionicons name="briefcase-outline" size={20} color={colors.accent} />
-          <Text style={[typography.h3, { marginLeft: 12, flex: 1 }]}>Plan a Trip Packing List</Text>
-          <Ionicons name="chevron-forward" size={18} color={colors.textFaint} />
+          <Ionicons name="briefcase-outline" size={20} color={theme.colors.accent} />
+          <Text style={[theme.typography.h3, { marginLeft: 12, flex: 1 }]}>Plan a Trip Packing List</Text>
+          <Ionicons name="chevron-forward" size={18} color={theme.colors.textFaint} />
         </Card>
       </TouchableOpacity>
 
       <Card style={{ marginTop: 16 }}>
-        <Text style={[typography.h3, { marginBottom: 12 }]}>Home City</Text>
+        <Text style={[theme.typography.h3, { marginBottom: 12 }]}>Home City</Text>
         <Input value={homeCity} onChangeText={setHomeCity} placeholder="e.g. Gurgaon" />
         <Button title="Save" onPress={handleSaveCity} loading={saving} />
       </Card>
 
-      <Button title="Log Out" variant="outline" onPress={logout} style={{ marginTop: spacing(6) }} />
+      <Button title="Log Out" variant="outline" onPress={logout} style={{ marginTop: theme.spacing(6) }} />
 
       <Text style={styles.footer}>Wardrobe Manager · Built with MERN + Expo</Text>
     </ScrollView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg },
+const makeStyles = (theme) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: theme.colors.bg },
   avatarRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 24 },
   avatar: {
-    width: 60, height: 60, borderRadius: radius.pill, backgroundColor: colors.accentSoft,
+    width: 60, height: 60, borderRadius: theme.radius.pill, backgroundColor: theme.colors.accentSoft,
     alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
   },
   avatarImage: { width: '100%', height: '100%' },
   avatarBadge: {
-    position: 'absolute', bottom: -2, right: -2, width: 22, height: 22, borderRadius: radius.pill,
-    backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center',
-    borderWidth: 2, borderColor: colors.bg,
+    position: 'absolute', bottom: -2, right: -2, width: 22, height: 22, borderRadius: theme.radius.pill,
+    backgroundColor: theme.colors.accent, alignItems: 'center', justifyContent: 'center',
+    borderWidth: 2, borderColor: theme.colors.bg,
   },
   menuCard: { flexDirection: 'row', alignItems: 'center' },
-  footer: { textAlign: 'center', color: colors.textFaint, fontSize: 12, marginTop: 30 },
+  footer: { textAlign: 'center', color: theme.colors.textFaint, fontSize: 12, marginTop: 30 },
 });

@@ -7,43 +7,46 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import api from '../api/client';
 import Card from '../components/Card';
 import EmptyState from '../components/EmptyState';
-import { colors, radius, typography, spacing } from '../theme/colors';
+import { useTheme } from '../context/ThemeContext';
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
 
 // Heatmap shading for the wear calendar — lighter accent for a single wear,
-// full accent (with white text) for 3+ wears in a day.
-const HEAT_COLORS = { 1: colors.accentSoft, 2: '#DE9E7E', 3: colors.accent };
+// full accent (with white text) for 3+ wears in a day. Computed per-theme
+// since it depends on the active accent color.
+const getHeatColors = (theme) => ({ 1: theme.colors.accentSoft, 2: '#DE9E7E', 3: theme.colors.accent });
 const heatBucket = (count) => (count >= 3 ? 3 : count);
 
-function WornRow({ item }) {
+function WornRow({ item, theme }) {
+  const styles = makeStyles(theme);
   return (
     <View style={styles.pieceRow}>
       <View style={styles.pieceImg}>
         {item.imageUrl ? (
           <Image source={{ uri: item.imageUrl }} style={{ width: '100%', height: '100%' }} />
         ) : (
-          <Ionicons name="shirt-outline" size={20} color={colors.textFaint} />
+          <Ionicons name="shirt-outline" size={20} color={theme.colors.textFaint} />
         )}
       </View>
       <View style={{ flex: 1 }}>
-        <Text style={typography.h3} numberOfLines={1}>{item.name}</Text>
-        <Text style={[typography.bodyMuted, { textTransform: 'capitalize' }]}>{item.category}</Text>
+        <Text style={theme.typography.h3} numberOfLines={1}>{item.name}</Text>
+        <Text style={[theme.typography.bodyMuted, { textTransform: 'capitalize' }]}>{item.category}</Text>
       </View>
     </View>
   );
 }
 
 // One WearLog entry: either a single item, or an outfit (rendered as its pieces).
-function LogEntry({ log }) {
+function LogEntry({ log, theme }) {
+  const styles = makeStyles(theme);
   if (log.outfit) {
     return (
       <Card style={{ marginBottom: 12 }}>
         <View style={styles.entryHeader}>
-          <Ionicons name="albums-outline" size={16} color={colors.accent} />
-          <Text style={[typography.label, { marginLeft: 6 }]}>OUTFIT · {log.outfit.name}</Text>
+          <Ionicons name="albums-outline" size={16} color={theme.colors.accent} />
+          <Text style={[theme.typography.label, { marginLeft: 6 }]}>OUTFIT · {log.outfit.name}</Text>
         </View>
-        {(log.outfit.items || []).map((it) => <WornRow key={it._id} item={it} />)}
+        {(log.outfit.items || []).map((it) => <WornRow key={it._id} item={it} theme={theme} />)}
       </Card>
     );
   }
@@ -51,10 +54,10 @@ function LogEntry({ log }) {
     return (
       <Card style={{ marginBottom: 12 }}>
         <View style={styles.entryHeader}>
-          <Ionicons name="shirt-outline" size={16} color={colors.accent} />
-          <Text style={[typography.label, { marginLeft: 6 }]}>ITEM</Text>
+          <Ionicons name="shirt-outline" size={16} color={theme.colors.accent} />
+          <Text style={[theme.typography.label, { marginLeft: 6 }]}>ITEM</Text>
         </View>
-        <WornRow item={log.item} />
+        <WornRow item={log.item} theme={theme} />
       </Card>
     );
   }
@@ -62,6 +65,8 @@ function LogEntry({ log }) {
 }
 
 export default function CalendarScreen() {
+  const theme = useTheme();
+  const styles = makeStyles(theme);
   const insets = useSafeAreaInsets();
   const [month, setMonth] = useState(todayStr().slice(0, 7));
   const [markedDates, setMarkedDates] = useState({});
@@ -69,6 +74,7 @@ export default function CalendarScreen() {
   const [logs, setLogs] = useState([]);
   const [loadingCalendar, setLoadingCalendar] = useState(false);
   const [loadingLogs, setLoadingLogs] = useState(false);
+  const HEAT_COLORS = getHeatColors(theme);
 
   const loadCalendar = useCallback(async (m) => {
     setLoadingCalendar(true);
@@ -80,7 +86,7 @@ export default function CalendarScreen() {
         marks[d.date] = {
           customStyles: {
             container: { backgroundColor: HEAT_COLORS[bucket], borderRadius: 8 },
-            text: { color: bucket === 3 ? '#fff' : colors.text, fontWeight: '700' },
+            text: { color: bucket === 3 ? theme.colors.onAccent : theme.colors.text, fontWeight: '700' },
           },
         };
       });
@@ -89,8 +95,8 @@ export default function CalendarScreen() {
         [selectedDate]: {
           ...(marks[selectedDate] || {}),
           customStyles: {
-            container: { backgroundColor: colors.accent, borderRadius: 8, borderWidth: 2, borderColor: colors.text },
-            text: { color: '#fff', fontWeight: '700' },
+            container: { backgroundColor: theme.colors.accent, borderRadius: 8, borderWidth: 2, borderColor: theme.colors.text },
+            text: { color: theme.colors.onAccent, fontWeight: '700' },
           },
         },
       }));
@@ -99,7 +105,7 @@ export default function CalendarScreen() {
     } finally {
       setLoadingCalendar(false);
     }
-  }, [selectedDate]);
+  }, [selectedDate, theme]);
 
   const loadLogsForDate = useCallback(async (date) => {
     setLoadingLogs(true);
@@ -130,8 +136,8 @@ export default function CalendarScreen() {
       const existing = next[day.dateString]?.customStyles;
       next[day.dateString] = {
         customStyles: {
-          container: { backgroundColor: existing?.container?.backgroundColor || colors.accent, borderRadius: 8, borderWidth: 2, borderColor: colors.text },
-          text: existing?.text || { color: '#fff', fontWeight: '700' },
+          container: { backgroundColor: existing?.container?.backgroundColor || theme.colors.accent, borderRadius: 8, borderWidth: 2, borderColor: theme.colors.text },
+          text: existing?.text || { color: theme.colors.onAccent, fontWeight: '700' },
         },
       };
       return next;
@@ -153,10 +159,10 @@ export default function CalendarScreen() {
   return (
     <ScrollView
       style={styles.container}
-      contentContainerStyle={{ padding: 20, paddingTop: insets.top + 20, paddingBottom: 60 }}
-      refreshControl={<RefreshControl refreshing={loadingCalendar} onRefresh={() => loadCalendar(month)} tintColor={colors.accent} />}
+      contentContainerStyle={{ padding: 20, paddingTop: insets.top + 20, paddingBottom: 130 }}
+      refreshControl={<RefreshControl refreshing={loadingCalendar} onRefresh={() => loadCalendar(month)} tintColor={theme.colors.accent} />}
     >
-      <Text style={[typography.h1, { marginBottom: 16 }]}>Wear Calendar</Text>
+      <Text style={[theme.typography.h1, { marginBottom: 16 }]}>Wear Calendar</Text>
 
       <Card style={{ padding: 6 }}>
         <Calendar
@@ -166,18 +172,18 @@ export default function CalendarScreen() {
           markedDates={markedDates}
           markingType="custom"
           theme={{
-            backgroundColor: colors.surface,
-            calendarBackground: colors.surface,
-            textSectionTitleColor: colors.textMuted,
-            selectedDayBackgroundColor: colors.accent,
-            selectedDayTextColor: '#fff',
-            todayTextColor: colors.accent,
-            dayTextColor: colors.text,
-            textDisabledColor: colors.textFaint,
-            dotColor: colors.accent,
-            selectedDotColor: '#fff',
-            arrowColor: colors.accent,
-            monthTextColor: colors.text,
+            backgroundColor: theme.colors.surface,
+            calendarBackground: theme.colors.surface,
+            textSectionTitleColor: theme.colors.textMuted,
+            selectedDayBackgroundColor: theme.colors.accent,
+            selectedDayTextColor: theme.colors.onAccent,
+            todayTextColor: theme.colors.accent,
+            dayTextColor: theme.colors.text,
+            textDisabledColor: theme.colors.textFaint,
+            dotColor: theme.colors.accent,
+            selectedDotColor: theme.colors.onAccent,
+            arrowColor: theme.colors.accent,
+            monthTextColor: theme.colors.text,
             textMonthFontWeight: '700',
             textDayFontWeight: '500',
           }}
@@ -185,14 +191,14 @@ export default function CalendarScreen() {
       </Card>
 
       <View style={styles.legendRow}>
-        <Text style={typography.label}>FEWER WEARS</Text>
+        <Text style={theme.typography.label}>FEWER WEARS</Text>
         <View style={[styles.legendDot, { backgroundColor: HEAT_COLORS[1] }]} />
         <View style={[styles.legendDot, { backgroundColor: HEAT_COLORS[2] }]} />
         <View style={[styles.legendDot, { backgroundColor: HEAT_COLORS[3] }]} />
-        <Text style={typography.label}>MORE WEARS</Text>
+        <Text style={theme.typography.label}>MORE WEARS</Text>
       </View>
 
-      <Text style={[typography.h3, { marginTop: spacing(6), marginBottom: 12 }]}>
+      <Text style={[theme.typography.h3, { marginTop: theme.spacing(6), marginBottom: 12 }]}>
         {isToday ? 'Today' : selectedLabel}
       </Text>
 
@@ -204,19 +210,19 @@ export default function CalendarScreen() {
         />
       )}
 
-      {logs.map((log) => <LogEntry key={log._id} log={log} />)}
+      {logs.map((log) => <LogEntry key={log._id} log={log} theme={theme} />)}
     </ScrollView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg },
+const makeStyles = (theme) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: theme.colors.bg },
   legendRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 12, gap: 6 },
   legendDot: { width: 14, height: 14, borderRadius: 4, marginHorizontal: 2 },
   entryHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
   pieceRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
   pieceImg: {
-    width: 46, height: 46, borderRadius: radius.sm, backgroundColor: colors.surfaceAlt,
+    width: 46, height: 46, borderRadius: theme.radius.sm, backgroundColor: theme.colors.surfaceAlt,
     alignItems: 'center', justifyContent: 'center', marginRight: 12, overflow: 'hidden',
   },
 });

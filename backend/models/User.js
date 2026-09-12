@@ -10,6 +10,9 @@ const userSchema = new mongoose.Schema(
     homeCity: { type: String, default: '' },
     homeLat: { type: Number, default: null },
     homeLon: { type: Number, default: null },
+    // Outfit Rotation: how many days an item/outfit should "rest" before
+    // suggestions (Today, Surprise Me) will offer it again. 0 disables rotation.
+    rotationDays: { type: Number, default: 5, min: 0, max: 60 },
   },
   { timestamps: true }
 );
@@ -34,6 +37,7 @@ userSchema.methods.toSafeObject = function () {
     homeCity: this.homeCity,
     homeLat: this.homeLat,
     homeLon: this.homeLon,
+    rotationDays: this.rotationDays,
   };
 };
 

@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, radius, typography, shadow } from '../theme/colors';
+import { useTheme } from '../context/ThemeContext';
 
 const CATEGORY_ICONS = {
   top: 'shirt-outline',
@@ -14,6 +14,8 @@ const CATEGORY_ICONS = {
 };
 
 export default function ItemCard({ item, onPress, selected, onToggleSelect }) {
+  const theme = useTheme();
+  const styles = makeStyles(theme);
   return (
     <TouchableOpacity
       onPress={onToggleSelect ? onToggleSelect : onPress}
@@ -25,7 +27,7 @@ export default function ItemCard({ item, onPress, selected, onToggleSelect }) {
           <Image source={{ uri: item.imageUrl }} style={styles.image} resizeMode="cover" />
         ) : (
           <View style={styles.placeholder}>
-            <Ionicons name={CATEGORY_ICONS[item.category] || 'shirt-outline'} size={30} color={colors.textFaint} />
+            <Ionicons name={CATEGORY_ICONS[item.category] || 'shirt-outline'} size={30} color={theme.colors.textFaint} />
           </View>
         )}
         {item.inLaundry && (
@@ -38,31 +40,38 @@ export default function ItemCard({ item, onPress, selected, onToggleSelect }) {
             <Ionicons name="heart" size={12} color="#fff" />
           </View>
         )}
+        {(item.repair?.status === 'needs_repair' || item.repair?.status === 'in_progress') && (
+          <View style={[styles.badge, styles.repairBadge]}>
+            <Ionicons name="build-outline" size={12} color="#fff" />
+          </View>
+        )}
       </View>
       <Text style={styles.name} numberOfLines={1}>{item.name}</Text>
       <Text style={styles.meta} numberOfLines={1}>
-        {item.wearCount || 0} wear{item.wearCount === 1 ? '' : 's'}
+        {item.wearCount || 0} wear{item.wearCount === 1 ? '' : 's'}{item.inCooldown ? ' · resting' : ''}
       </Text>
     </TouchableOpacity>
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (theme) => StyleSheet.create({
   card: {
     width: '47%',
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.radius.md,
+    borderWidth: theme.border.width,
+    borderColor: theme.colors.text,
     padding: 10,
     marginBottom: 14,
-    ...shadow.subtle,
+    ...theme.shadow.subtle,
   },
-  selected: { borderWidth: 2, borderColor: colors.accent },
+  selected: { borderColor: theme.colors.accent, borderWidth: theme.border.width + 1 },
   imageWrap: {
     width: '100%',
     height: 130,
-    borderRadius: radius.sm,
+    borderRadius: theme.radius.sm,
     overflow: 'hidden',
-    backgroundColor: colors.surfaceAlt,
+    backgroundColor: theme.colors.surfaceAlt,
     marginBottom: 8,
   },
   image: { width: '100%', height: '100%' },
@@ -71,11 +80,12 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 6,
     left: 6,
-    backgroundColor: colors.info,
-    borderRadius: radius.pill,
+    backgroundColor: theme.colors.info,
+    borderRadius: theme.radius.pill,
     padding: 4,
   },
-  favBadge: { left: undefined, right: 6, backgroundColor: colors.danger },
-  name: { ...typography.h3, fontSize: 14 },
-  meta: { ...typography.bodyMuted, fontSize: 12, marginTop: 2 },
+  favBadge: { left: undefined, right: 6, backgroundColor: theme.colors.danger },
+  repairBadge: { top: undefined, bottom: 6, backgroundColor: theme.colors.danger },
+  name: { ...theme.typography.h3, fontSize: 14 },
+  meta: { ...theme.typography.bodyMuted, fontSize: 12, marginTop: 2 },
 });

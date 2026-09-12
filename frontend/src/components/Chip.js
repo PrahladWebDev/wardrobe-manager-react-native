@@ -1,8 +1,10 @@
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet } from 'react-native';
-import { colors, radius } from '../theme/colors';
+import { useTheme } from '../context/ThemeContext';
 
 export default function Chip({ label, active, onPress, style }) {
+  const theme = useTheme();
+  const styles = makeStyles(theme);
   return (
     <TouchableOpacity
       onPress={onPress}
@@ -14,17 +16,17 @@ export default function Chip({ label, active, onPress, style }) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (theme) => StyleSheet.create({
   chip: {
     paddingHorizontal: 14,
     paddingVertical: 8,
-    borderRadius: radius.pill,
-    backgroundColor: colors.surfaceAlt,
+    borderRadius: theme.radius.pill,
+    backgroundColor: theme.colors.surface,
     marginRight: 8,
-    borderWidth: 1,
-    borderColor: 'transparent',
+    borderWidth: theme.border.width,
+    borderColor: theme.colors.text,
   },
-  active: { backgroundColor: colors.text, borderColor: colors.text },
-  text: { fontSize: 13, fontWeight: '600', color: colors.textMuted, textTransform: 'capitalize' },
-  activeText: { color: '#fff' },
+  active: { backgroundColor: theme.colors.accent },
+  text: { fontSize: 13, fontWeight: '600', color: theme.colors.textMuted, textTransform: 'capitalize' },
+  activeText: { color: theme.colors.onAccent },
 });

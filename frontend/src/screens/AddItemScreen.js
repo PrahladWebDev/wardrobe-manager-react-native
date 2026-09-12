@@ -6,7 +6,8 @@ import api from '../api/client';
 import Input from '../components/Input';
 import Button from '../components/Button';
 import Chip from '../components/Chip';
-import { colors, radius, typography, spacing } from '../theme/colors';
+import { useTheme } from '../context/ThemeContext';
+import { DRESS_CODES } from '../constants/dressCodes';
 
 const CATEGORIES = ['top', 'bottom', 'dress', 'outerwear', 'shoes', 'accessory', 'bag'];
 const SEASONS = ['all', 'summer', 'winter', 'monsoon'];
@@ -14,6 +15,8 @@ const MAX_PHOTOS = 6;
 
 // Shared create/edit form. If route.params.item is passed, this screen edits that item instead.
 export default function AddItemScreen({ navigation, route }) {
+  const theme = useTheme();
+  const styles = makeStyles(theme);
   const existing = route.params?.item || null;
   const isEdit = !!existing;
 
@@ -29,7 +32,7 @@ export default function AddItemScreen({ navigation, route }) {
   const [color, setColor] = useState(existing?.color || '');
   const [brand, setBrand] = useState(existing?.brand || '');
   const [price, setPrice] = useState(existing?.price ? String(existing.price) : '');
-  const [occasions, setOccasions] = useState((existing?.occasions || []).join(', '));
+  const [occasions, setOccasions] = useState(existing?.occasions || []);
   const [removeBg, setRemoveBg] = useState(false);
   const [saving, setSaving] = useState(false);
   const [scanningReceipt, setScanningReceipt] = useState(false);
@@ -113,7 +116,11 @@ export default function AddItemScreen({ navigation, route }) {
       form.append('color', color);
       form.append('brand', brand);
       form.append('price', price || '0');
-      form.append('occasions', occasions);
+      if (occasions.length) {
+        occasions.forEach((o) => form.append('occasions', o));
+      } else {
+        form.append('occasions', ''); // explicit empty marker so edits can clear all dress codes
+      }
       if (removeBg) form.append('removeBackground', 'true');
       if (isEdit && removedUrls.length) form.append('removeImages', JSON.stringify(removedUrls));
 
@@ -167,17 +174,17 @@ export default function AddItemScreen({ navigation, route }) {
         ))}
         {images.length < MAX_PHOTOS && (
           <TouchableOpacity style={styles.addThumb} onPress={openPhotoOptions}>
-            <Ionicons name="camera-outline" size={26} color={colors.textFaint} />
-            <Text style={[typography.bodyMuted, { fontSize: 11, marginTop: 4 }]}>Add photo</Text>
+            <Ionicons name="camera-outline" size={26} color={theme.colors.textFaint} />
+            <Text style={[theme.typography.bodyMuted, { fontSize: 11, marginTop: 4 }]}>Add photo</Text>
           </TouchableOpacity>
         )}
       </ScrollView>
-      {scanningReceipt && <Text style={[typography.bodyMuted, { marginBottom: 12 }]}>Scanning receipt…</Text>}
+      {scanningReceipt && <Text style={[theme.typography.bodyMuted, { marginBottom: 12 }]}>Scanning receipt…</Text>}
 
       {images.some((img) => !img.existing) && (
         <TouchableOpacity style={styles.bgToggle} onPress={() => setRemoveBg((v) => !v)} activeOpacity={0.8}>
-          <Ionicons name={removeBg ? 'checkbox' : 'square-outline'} size={20} color={removeBg ? colors.accent : colors.textFaint} />
-          <Text style={[typography.bodyMuted, { marginLeft: 8 }]}>Remove background from new photos</Text>
+          <Ionicons name={removeBg ? 'checkbox' : 'square-outline'} size={20} color={removeBg ? theme.colors.accent : theme.colors.textFaint} />
+          <Text style={[theme.typography.bodyMuted, { marginLeft: 8 }]}>Remove background from new photos</Text>
         </TouchableOpacity>
       )}
 
@@ -200,27 +207,41 @@ export default function AddItemScreen({ navigation, route }) {
       <Input label="Color" value={color} onChangeText={setColor} placeholder="e.g. Navy Blue" />
       <Input label="Brand" value={brand} onChangeText={setBrand} placeholder="e.g. Levi's" />
       <Input label="Price (₹)" value={price} onChangeText={setPrice} placeholder="0" keyboardType="numeric" />
-      <Input label="Occasions (comma separated)" value={occasions} onChangeText={setOccasions} placeholder="casual, work, formal" />
 
-      <Button title={isEdit ? 'Save Changes' : 'Save to Wardrobe'} onPress={handleSave} loading={saving} style={{ marginTop: spacing(4) }} />
+      <Text style={styles.sectionLabel}>Dress Code</Text>
+      <View style={styles.chipWrap}>
+        {DRESS_CODES.map((d) => (
+          <Chip
+            key={d.key}
+            label={d.label}
+            active={occasions.includes(d.key)}
+            onPress={() => setOccasions((prev) => (
+              prev.includes(d.key) ? prev.filter((k) => k !== d.key) : [...prev, d.key]
+            ))}
+            style={{ marginBottom: 8 }}
+          />
+        ))}
+      </View>
+
+      <Button title={isEdit ? 'Save Changes' : 'Save to Wardrobe'} onPress={handleSave} loading={saving} style={{ marginTop: theme.spacing(4) }} />
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg },
-  thumbWrap: { width: 100, height: 130, borderRadius: radius.lg, overflow: 'hidden', marginRight: 10, backgroundColor: colors.surfaceAlt },
+const makeStyles = (theme) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: theme.colors.bg },
+  thumbWrap: { width: 100, height: 130, borderRadius: theme.radius.lg, overflow: 'hidden', marginRight: 10, backgroundColor: theme.colors.surfaceAlt },
   thumb: { width: '100%', height: '100%' },
   removeThumb: {
     position: 'absolute', top: 6, right: 6, backgroundColor: 'rgba(0,0,0,0.55)',
-    borderRadius: radius.pill, width: 22, height: 22, alignItems: 'center', justifyContent: 'center',
+    borderRadius: theme.radius.pill, width: 22, height: 22, alignItems: 'center', justifyContent: 'center',
   },
   addThumb: {
-    width: 100, height: 130, borderRadius: radius.lg, backgroundColor: colors.surfaceAlt,
-    alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border, marginRight: 10,
+    width: 100, height: 130, borderRadius: theme.radius.lg, backgroundColor: theme.colors.surfaceAlt,
+    alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: theme.colors.border, marginRight: 10,
   },
   bgToggle: { flexDirection: 'row', alignItems: 'center', marginTop: 4, marginBottom: 20 },
-  sectionLabel: { ...typography.label, textTransform: 'uppercase', marginBottom: 8 },
+  sectionLabel: { ...theme.typography.label, textTransform: 'uppercase', marginBottom: 8 },
   chipWrap: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 12 },
 });

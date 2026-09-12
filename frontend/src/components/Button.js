@@ -1,8 +1,10 @@
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, ActivityIndicator } from 'react-native';
-import { colors, radius, typography } from '../theme/colors';
+import { useTheme } from '../context/ThemeContext';
 
 export default function Button({ title, onPress, variant = 'primary', loading = false, disabled = false, style }) {
+  const theme = useTheme();
+  const styles = makeStyles(theme);
   const isPrimary = variant === 'primary';
   const isOutline = variant === 'outline';
   return (
@@ -21,12 +23,12 @@ export default function Button({ title, onPress, variant = 'primary', loading = 
       ]}
     >
       {loading ? (
-        <ActivityIndicator color={isPrimary || variant === 'danger' ? '#fff' : colors.accent} />
+        <ActivityIndicator color={isPrimary ? theme.colors.onAccent : variant === 'danger' ? '#fff' : theme.colors.accent} />
       ) : (
         <Text
           style={[
-            typography.button,
-            { color: isPrimary || variant === 'danger' ? '#fff' : colors.accent },
+            theme.typography.button,
+            { color: isPrimary ? theme.colors.onAccent : variant === 'danger' ? '#fff' : theme.colors.accent },
           ]}
         >
           {title}
@@ -36,18 +38,20 @@ export default function Button({ title, onPress, variant = 'primary', loading = 
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (theme) => StyleSheet.create({
   base: {
     paddingVertical: 14,
     paddingHorizontal: 20,
-    borderRadius: radius.pill,
+    borderRadius: theme.radius.pill,
+    borderWidth: theme.border.width,
+    borderColor: theme.colors.text,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
   },
-  primary: { backgroundColor: colors.accent },
-  outline: { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: colors.accent },
-  ghost: { backgroundColor: colors.accentSoft },
-  danger: { backgroundColor: colors.danger },
+  primary: { backgroundColor: theme.colors.accent },
+  outline: { backgroundColor: 'transparent', borderColor: theme.colors.text },
+  ghost: { backgroundColor: theme.colors.accentSoft },
+  danger: { backgroundColor: theme.colors.danger },
   disabled: { opacity: 0.5 },
 });

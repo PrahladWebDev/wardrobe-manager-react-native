@@ -40,13 +40,14 @@ async function resolveUploadedImageUrls(req) {
 // GET /api/items?category=&season=&occasion=&search=&inLaundry=&favorite=&page=&limit=
 exports.getItems = async (req, res) => {
   try {
-    const { category, season, occasion, search, inLaundry, favorite } = req.query;
+    const { category, season, occasion, search, inLaundry, favorite, repairStatus } = req.query;
     const filter = { user: req.user._id };
     if (category) filter.category = category;
     if (season) filter.season = season;
     if (occasion) filter.occasions = occasion.toLowerCase();
     if (inLaundry !== undefined) filter.inLaundry = inLaundry === 'true';
     if (favorite !== undefined) filter.favorite = favorite === 'true';
+    if (repairStatus) filter['repair.status'] = repairStatus;
     if (search) filter.name = { $regex: search, $options: 'i' };
 
     const page = Math.max(1, Number(req.query.page) || 1);
@@ -58,8 +59,19 @@ exports.getItems = async (req, res) => {
       ClothingItem.countDocuments(filter),
     ]);
 
+    const rotationDays = req.user.rotationDays || 0;
+    const now = Date.now();
+    const withRotation = items.map((it) => {
+      const obj = it.toObject();
+      obj.inCooldown = !!(
+        rotationDays && it.lastWornAt && now - new Date(it.lastWornAt).getTime() < rotationDays * 24 * 60 * 60 * 1000
+      );
+      return obj;
+    });
+
     res.json({
-      items,
+      items: withRotation,
+      rotationDays,
       pagination: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)), hasMore: skip + items.length < total },
     });
   } catch (err) {
@@ -193,6 +205,56 @@ exports.logWear = async (req, res) => {
     await item.save();
     await WearLog.create({ user: req.user._id, item: item._id, occasion: req.body.occasion || '' });
     res.json({ item });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// PUT /api/items/:id/repair
+// Body: { status, notes, cost }. Stamps reportedAt/resolvedAt automatically
+// based on the status transition so the tracker can show "in repair since X".
+exports.updateRepair = async (req, res) => {
+  try {
+    const item = await ClothingItem.findOne({ _id: req.params.id, user: req.user._id });
+    if (!item) return res.status(404).json({ message: 'Item not found' });
+
+    const { status, notes, cost } = req.body;
+    if (!item.repair) item.repair = { status: 'none', notes: '', cost: 0, reportedAt: null, resolvedAt: null };
+
+    const prevStatus = item.repair.status;
+    if (status !== undefined && ClothingItem.REPAIR_STATUSES.includes(status)) {
+      item.repair.status = status;
+      if (status === 'needs_repair' && prevStatus === 'none') {
+        item.repair.reportedAt = new Date();
+        item.repair.resolvedAt = null;
+      }
+      if (status === 'repaired' && prevStatus !== 'repaired') {
+        item.repair.resolvedAt = new Date();
+      }
+      if (status === 'none') {
+        item.repair.reportedAt = null;
+        item.repair.resolvedAt = null;
+      }
+    }
+    if (notes !== undefined) item.repair.notes = notes;
+    if (cost !== undefined) item.repair.cost = Math.max(0, Number(cost) || 0);
+
+    await item.save();
+    res.json({ item });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// GET /api/items/repairs — everything currently flagged damaged or in progress,
+// plus recently-resolved repairs for a small history trail.
+exports.getRepairs = async (req, res) => {
+  try {
+    const [active, resolved] = await Promise.all([
+      ClothingItem.find({ user: req.user._id, 'repair.status': { $in: ['needs_repair', 'in_progress'] } }).sort({ 'repair.reportedAt': 1 }),
+      ClothingItem.find({ user: req.user._id, 'repair.status': 'repaired' }).sort({ 'repair.resolvedAt': -1 }).limit(10),
+    ]);
+    res.json({ active, resolved });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

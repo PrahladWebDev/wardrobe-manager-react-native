@@ -22,6 +22,33 @@ const rankByFreshness = (items) => {
   });
 };
 
+// --- Outfit Rotation ------------------------------------------------------
+// Splits a category's candidates into "rested" (never worn, or not worn
+// within the user's rotationDays window) vs "cooldown" (worn too recently).
+// Suggestion logic should always prefer the rested pool, and only reach into
+// cooldown when rested is empty — that's what keeps "Surprise Me" and Today's
+// pick from repeating the same pieces two days in a row.
+const splitByRotation = (items, rotationDays) => {
+  if (!rotationDays) return { rested: items, cooldown: [] };
+  const now = Date.now();
+  const cutoffMs = rotationDays * 24 * 60 * 60 * 1000;
+  const rested = [];
+  const cooldown = [];
+  for (const it of items) {
+    const wornRecently = it.lastWornAt && now - new Date(it.lastWornAt).getTime() < cutoffMs;
+    (wornRecently ? cooldown : rested).push(it);
+  }
+  return { rested, cooldown };
+};
+
+// Prefer the rested pool; fall back to cooldown only if rested is empty.
+// Returns { pool, hadToUseCooldown } so callers can flag it to the client.
+const rotationPool = (items, rotationDays) => {
+  const { rested, cooldown } = splitByRotation(items, rotationDays);
+  if (rested.length) return { pool: rested, hadToUseCooldown: false };
+  return { pool: cooldown, hadToUseCooldown: cooldown.length > 0 };
+};
+
 // GET /api/suggestion/today?lat=&lon=&occasion=
 exports.today = async (req, res) => {
   try {
@@ -30,7 +57,7 @@ exports.today = async (req, res) => {
     const targetSeason = seasonFromWeather(weather);
 
     const seasonOr = [{ season: targetSeason }, { season: 'all' }];
-    const and = [{ user: req.user._id, inLaundry: false }, { $or: seasonOr }];
+    const and = [{ user: req.user._id, inLaundry: false, 'repair.status': { $nin: ['needs_repair', 'in_progress'] } }, { $or: seasonOr }];
     const occOr = occasionOr(occasion);
     if (occOr) and.push({ $or: occOr });
 
@@ -41,9 +68,14 @@ exports.today = async (req, res) => {
       ClothingItem.find({ $and: and, category: 'outerwear' }),
     ]);
 
-    const rankedTops = rankByFreshness(tops);
-    const rankedBottoms = rankByFreshness(bottoms);
-    const rankedShoes = rankByFreshness(shoes);
+    const rotationDays = req.user.rotationDays || 0;
+    const topsRot = rotationPool(tops, rotationDays);
+    const bottomsRot = rotationPool(bottoms, rotationDays);
+    const shoesRot = rotationPool(shoes, rotationDays);
+
+    const rankedTops = rankByFreshness(topsRot.pool);
+    const rankedBottoms = rankByFreshness(bottomsRot.pool);
+    const rankedShoes = rankByFreshness(shoesRot.pool);
 
     const suggestion = {
       top: rankedTops[0] || pick(tops) || null,
@@ -56,7 +88,16 @@ exports.today = async (req, res) => {
       .filter(([k, v]) => k !== 'outerwear' && !v)
       .map(([k]) => k);
 
-    res.json({ weather, targetSeason, suggestion, missing });
+    const rotation = {
+      days: rotationDays,
+      usedCooldown: [
+        topsRot.hadToUseCooldown && 'top',
+        bottomsRot.hadToUseCooldown && 'bottom',
+        shoesRot.hadToUseCooldown && 'shoes',
+      ].filter(Boolean),
+    };
+
+    res.json({ weather, targetSeason, suggestion, missing, rotation });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -78,7 +119,7 @@ exports.packing = async (req, res) => {
     const targetSeason = seasonFromWeather(weather);
 
     const and = [
-      { user: req.user._id, inLaundry: false },
+      { user: req.user._id, inLaundry: false, 'repair.status': { $nin: ['needs_repair', 'in_progress'] } },
       { $or: [{ season: targetSeason }, { season: 'all' }] },
     ];
     const occOr = occasionOr(occasion);
@@ -161,6 +202,84 @@ exports.getLatestPacking = async (req, res) => {
   }
 };
 
+// Weighted random pick: items untouched in longer (or never worn) get a much
+// higher chance of being picked, but everything has *some* chance — this is
+// what makes "Surprise Me" feel different from Today's more deterministic pick.
+const weightedRandomPick = (items) => {
+  if (!items.length) return null;
+  const now = Date.now();
+  const weights = items.map((it) => {
+    if (!it.lastWornAt) return 30; // never worn: strong favorite
+    const daysSince = Math.max(0, (now - new Date(it.lastWornAt).getTime()) / (1000 * 60 * 60 * 24));
+    return Math.max(1, Math.min(30, daysSince)); // clamp 1–30 so nothing is ever a zero chance
+  });
+  const total = weights.reduce((a, b) => a + b, 0);
+  let roll = Math.random() * total;
+  for (let i = 0; i < items.length; i++) {
+    roll -= weights[i];
+    if (roll <= 0) return items[i];
+  }
+  return items[items.length - 1];
+};
+
+// GET /api/suggestion/surprise?occasion=&lat=&lon=
+// A playful "shuffle" alternative to /today: weighted-random per category
+// instead of always picking the single freshest item, so re-rolling gives a
+// genuinely different combo most of the time.
+exports.surprise = async (req, res) => {
+  try {
+    const { lat, lon, occasion } = req.query;
+    const weather = await getWeather(lat, lon);
+    const targetSeason = seasonFromWeather(weather);
+
+    const seasonOr = [{ season: targetSeason }, { season: 'all' }];
+    const and = [{ user: req.user._id, inLaundry: false, 'repair.status': { $nin: ['needs_repair', 'in_progress'] } }, { $or: seasonOr }];
+    const occOr = occasionOr(occasion);
+    if (occOr) and.push({ $or: occOr });
+
+    const [tops, bottoms, shoes, outerwear, accessories] = await Promise.all([
+      ClothingItem.find({ $and: and, category: 'top' }),
+      ClothingItem.find({ $and: and, category: 'bottom' }),
+      ClothingItem.find({ $and: and, category: 'shoes' }),
+      ClothingItem.find({ $and: and, category: 'outerwear' }),
+      ClothingItem.find({ $and: and, category: 'accessory' }),
+    ]);
+
+    const wantsOuterwear = weather.tempC <= 20 || weather.isRainy;
+    const rotationDays = req.user.rotationDays || 0;
+
+    const topsRot = rotationPool(tops, rotationDays);
+    const bottomsRot = rotationPool(bottoms, rotationDays);
+    const shoesRot = rotationPool(shoes, rotationDays);
+    const outerwearRot = rotationPool(outerwear, rotationDays);
+    const accessoriesRot = rotationPool(accessories, rotationDays);
+
+    const outfit = {
+      top: weightedRandomPick(topsRot.pool),
+      bottom: weightedRandomPick(bottomsRot.pool),
+      shoes: weightedRandomPick(shoesRot.pool),
+      outerwear: wantsOuterwear ? weightedRandomPick(outerwearRot.pool) : null,
+      accessory: Math.random() < 0.5 ? weightedRandomPick(accessoriesRot.pool) : null,
+    };
+
+    const missing = ['top', 'bottom', 'shoes'].filter((k) => !outfit[k]);
+
+    const rotation = {
+      days: rotationDays,
+      usedCooldown: [
+        topsRot.hadToUseCooldown && 'top',
+        bottomsRot.hadToUseCooldown && 'bottom',
+        shoesRot.hadToUseCooldown && 'shoes',
+        wantsOuterwear && outerwearRot.hadToUseCooldown && 'outerwear',
+      ].filter(Boolean),
+    };
+
+    res.json({ weather, targetSeason, outfit, missing, rotation });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
 // --- "Complete the Look" -----------------------------------------------
 
 const NEUTRALS = ['black', 'white', 'grey', 'gray', 'beige', 'navy', 'brown', 'cream', 'tan', 'charcoal', 'denim'];
@@ -218,6 +337,7 @@ exports.completeLook = async (req, res) => {
         user: req.user._id,
         category: cat,
         inLaundry: false,
+        'repair.status': { $nin: ['needs_repair', 'in_progress'] },
         _id: { $ne: source._id },
       });
 

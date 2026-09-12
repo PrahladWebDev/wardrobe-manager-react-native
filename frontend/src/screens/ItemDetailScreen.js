@@ -5,11 +5,22 @@ import { useFocusEffect } from '@react-navigation/native';
 import api from '../api/client';
 import Button from '../components/Button';
 import Card from '../components/Card';
-import { colors, radius, typography, spacing } from '../theme/colors';
+import Chip from '../components/Chip';
+import Input from '../components/Input';
+import { useTheme } from '../context/ThemeContext';
+import { labelForDressCode } from '../constants/dressCodes';
+
+const REPAIR_STATUS_OPTIONS = [
+  { key: 'none', label: 'Good' },
+  { key: 'needs_repair', label: 'Needs Repair' },
+  { key: 'in_progress', label: 'In Progress' },
+  { key: 'repaired', label: 'Repaired' },
+];
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-function CompleteTheLook({ itemId, navigation }) {
+function CompleteTheLook({ itemId, navigation, theme }) {
+  const styles = makeStyles(theme);
   const [suggestions, setSuggestions] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -27,12 +38,12 @@ function CompleteTheLook({ itemId, navigation }) {
   if (!loading && categories.length === 0) return null;
 
   return (
-    <View style={{ marginTop: spacing(6) }}>
-      <Text style={[typography.h3, { marginBottom: 12 }]}>Complete the Look</Text>
-      {loading && <Text style={typography.bodyMuted}>Finding pairings…</Text>}
+    <View style={{ marginTop: theme.spacing(6) }}>
+      <Text style={[theme.typography.h3, { marginBottom: 12 }]}>Complete the Look</Text>
+      {loading && <Text style={theme.typography.bodyMuted}>Finding pairings…</Text>}
       {categories.map((cat) => (
         <View key={cat} style={{ marginBottom: 16 }}>
-          <Text style={[typography.label, { textTransform: 'uppercase', marginBottom: 8 }]}>{cat}</Text>
+          <Text style={[theme.typography.label, { textTransform: 'uppercase', marginBottom: 8 }]}>{cat}</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             {suggestions[cat].map((it) => (
               <TouchableOpacity
@@ -43,7 +54,7 @@ function CompleteTheLook({ itemId, navigation }) {
               >
                 <View style={styles.suggestionImg}>
                   {it.imageUrl ? <Image source={{ uri: it.imageUrl }} style={{ width: '100%', height: '100%' }} /> : (
-                    <Ionicons name="shirt-outline" size={22} color={colors.textFaint} />
+                    <Ionicons name="shirt-outline" size={22} color={theme.colors.textFaint} />
                   )}
                 </View>
                 <Text style={styles.suggestionName} numberOfLines={1}>{it.name}</Text>
@@ -57,17 +68,24 @@ function CompleteTheLook({ itemId, navigation }) {
 }
 
 export default function ItemDetailScreen({ route, navigation }) {
+  const theme = useTheme();
+  const styles = makeStyles(theme);
   const { id } = route.params;
   const [item, setItem] = useState(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [activePhoto, setActivePhoto] = useState(0);
+  const [repairNotes, setRepairNotes] = useState('');
+  const [repairCost, setRepairCost] = useState('');
+  const [savingRepair, setSavingRepair] = useState(false);
 
   const load = async () => {
     try {
       const { data } = await api.get(`/items/${id}`);
       setItem(data.item);
       setActivePhoto(0);
+      setRepairNotes(data.item.repair?.notes || '');
+      setRepairCost(data.item.repair?.cost ? String(data.item.repair.cost) : '');
     } catch (err) {
       Alert.alert('Error', err.message);
     } finally {
@@ -107,6 +125,30 @@ export default function ItemDetailScreen({ route, navigation }) {
       setItem(data.item);
     } catch (err) {
       Alert.alert('Error', err.message);
+    }
+  };
+
+  const setRepairStatus = async (status) => {
+    setSavingRepair(true);
+    try {
+      const { data } = await api.put(`/items/${id}/repair`, { status, notes: repairNotes, cost: repairCost || 0 });
+      setItem(data.item);
+    } catch (err) {
+      Alert.alert('Error', err.message);
+    } finally {
+      setSavingRepair(false);
+    }
+  };
+
+  const saveRepairDetails = async () => {
+    setSavingRepair(true);
+    try {
+      const { data } = await api.put(`/items/${id}/repair`, { notes: repairNotes, cost: repairCost || 0 });
+      setItem(data.item);
+    } catch (err) {
+      Alert.alert('Error', err.message);
+    } finally {
+      setSavingRepair(false);
     }
   };
 
@@ -157,45 +199,45 @@ export default function ItemDetailScreen({ route, navigation }) {
             )}
           </>
         ) : (
-          <Ionicons name="shirt-outline" size={50} color={colors.textFaint} />
+          <Ionicons name="shirt-outline" size={50} color={theme.colors.textFaint} />
         )}
         <TouchableOpacity style={styles.favBtn} onPress={toggleFavorite}>
-          <Ionicons name={item.favorite ? 'heart' : 'heart-outline'} size={22} color={item.favorite ? colors.danger : colors.text} />
+          <Ionicons name={item.favorite ? 'heart' : 'heart-outline'} size={22} color={item.favorite ? theme.colors.danger : theme.colors.text} />
         </TouchableOpacity>
       </View>
 
-      <Text style={typography.h1}>{item.name}</Text>
-      <Text style={[typography.bodyMuted, { marginTop: 2, marginBottom: 16, textTransform: 'capitalize' }]}>
+      <Text style={theme.typography.h1}>{item.name}</Text>
+      <Text style={[theme.typography.bodyMuted, { marginTop: 2, marginBottom: 16, textTransform: 'capitalize' }]}>
         {item.category} · {item.color || 'no color set'} · {item.season}
       </Text>
 
       <View style={styles.statsRow}>
         <Card style={styles.statCard}>
-          <Text style={typography.h2}>{item.wearCount}</Text>
-          <Text style={typography.label}>WEARS</Text>
+          <Text style={theme.typography.h2}>{item.wearCount}</Text>
+          <Text style={theme.typography.label}>WEARS</Text>
         </Card>
         <Card style={styles.statCard}>
-          <Text style={typography.h2}>₹{item.price || 0}</Text>
-          <Text style={typography.label}>PRICE</Text>
+          <Text style={theme.typography.h2}>₹{item.price || 0}</Text>
+          <Text style={theme.typography.label}>PRICE</Text>
         </Card>
         <Card style={styles.statCard}>
-          <Text style={typography.h2}>{costPerWear ? `₹${costPerWear}` : '—'}</Text>
-          <Text style={typography.label}>COST/WEAR</Text>
+          <Text style={theme.typography.h2}>{costPerWear ? `₹${costPerWear}` : '—'}</Text>
+          <Text style={theme.typography.label}>COST/WEAR</Text>
         </Card>
       </View>
 
       {item.occasions?.length > 0 && (
         <View style={styles.tagRow}>
           {item.occasions.map((o) => (
-            <View key={o} style={styles.tag}><Text style={styles.tagText}>{o}</Text></View>
+            <View key={o} style={styles.tag}><Text style={styles.tagText}>{labelForDressCode(o)}</Text></View>
           ))}
         </View>
       )}
 
       {item.brand ? (
-        <Text style={[typography.bodyMuted, { marginBottom: 4 }]}>Brand: {item.brand}</Text>
+        <Text style={[theme.typography.bodyMuted, { marginBottom: 4 }]}>Brand: {item.brand}</Text>
       ) : null}
-      <Text style={[typography.bodyMuted, { marginBottom: 20 }]}>
+      <Text style={[theme.typography.bodyMuted, { marginBottom: 20 }]}>
         Last worn: {item.lastWornAt ? new Date(item.lastWornAt).toLocaleDateString() : 'Never'}
       </Text>
 
@@ -207,26 +249,67 @@ export default function ItemDetailScreen({ route, navigation }) {
         loading={busy}
         style={{ marginTop: 10 }}
       />
+
+      <Card style={{ marginTop: 16 }}>
+        <Text style={[theme.typography.h3, { marginBottom: 4 }]}>🔧 Repair Tracker</Text>
+        <Text style={[theme.typography.bodyMuted, { marginBottom: 12 }]}>
+          {item.repair?.status === 'none' || !item.repair
+            ? "Mark this if it's damaged so you know not to reach for it."
+            : item.repair.status === 'repaired'
+              ? `Fixed${item.repair.resolvedAt ? ` on ${new Date(item.repair.resolvedAt).toLocaleDateString()}` : ''}.`
+              : `Reported${item.repair.reportedAt ? ` on ${new Date(item.repair.reportedAt).toLocaleDateString()}` : ''} — excluded from Today/Surprise suggestions until fixed.`}
+        </Text>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+          {REPAIR_STATUS_OPTIONS.map((opt) => (
+            <Chip
+              key={opt.key}
+              label={opt.label}
+              active={(item.repair?.status || 'none') === opt.key}
+              onPress={() => setRepairStatus(opt.key)}
+            />
+          ))}
+        </View>
+        {item.repair && item.repair.status !== 'none' && (
+          <>
+            <Input
+              label="Repair notes"
+              value={repairNotes}
+              onChangeText={setRepairNotes}
+              placeholder="e.g. torn seam on left sleeve"
+              onBlur={saveRepairDetails}
+            />
+            <Input
+              label="Repair cost (₹)"
+              value={repairCost}
+              onChangeText={setRepairCost}
+              placeholder="0"
+              keyboardType="numeric"
+              onBlur={saveRepairDetails}
+            />
+          </>
+        )}
+      </Card>
+
       <Button
         title="Edit Item"
         variant="outline"
         onPress={() => navigation.navigate('AddItem', { item })}
         style={{ marginTop: 10 }}
       />
-      <Button title="Delete Item" variant="danger" onPress={handleDelete} style={{ marginTop: spacing(6) }} />
+      <Button title="Delete Item" variant="danger" onPress={handleDelete} style={{ marginTop: theme.spacing(6) }} />
 
-      <CompleteTheLook itemId={id} navigation={navigation} />
+      <CompleteTheLook itemId={id} navigation={navigation} theme={theme} />
     </ScrollView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg },
+const makeStyles = (theme) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: theme.colors.bg },
   imageWrap: {
     width: '100%',
     height: 260,
-    borderRadius: radius.lg,
-    backgroundColor: colors.surfaceAlt,
+    borderRadius: theme.radius.lg,
+    backgroundColor: theme.colors.surfaceAlt,
     marginBottom: 16,
     alignItems: 'center',
     justifyContent: 'center',
@@ -238,17 +321,17 @@ const styles = StyleSheet.create({
   dotActive: { backgroundColor: '#fff', width: 8, height: 8, borderRadius: 4 },
   favBtn: {
     position: 'absolute', top: 12, right: 12, backgroundColor: '#fff',
-    borderRadius: radius.pill, padding: 8,
+    borderRadius: theme.radius.pill, padding: 8,
   },
   statsRow: { flexDirection: 'row', gap: 10, marginBottom: 16 },
   statCard: { flex: 1, alignItems: 'center', paddingVertical: 14 },
   tagRow: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 12 },
-  tag: { backgroundColor: colors.accentSoft, borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 5, marginRight: 6, marginBottom: 6 },
-  tagText: { color: colors.accent, fontSize: 12, fontWeight: '600', textTransform: 'capitalize' },
+  tag: { backgroundColor: theme.colors.accentSoft, borderRadius: theme.radius.pill, paddingHorizontal: 12, paddingVertical: 5, marginRight: 6, marginBottom: 6 },
+  tagText: { color: theme.colors.accent, fontSize: 12, fontWeight: '600', textTransform: 'capitalize' },
   suggestionCard: { width: 90, marginRight: 10 },
   suggestionImg: {
-    width: 90, height: 90, borderRadius: radius.sm, backgroundColor: colors.surfaceAlt,
+    width: 90, height: 90, borderRadius: theme.radius.sm, backgroundColor: theme.colors.surfaceAlt,
     alignItems: 'center', justifyContent: 'center', marginBottom: 6, overflow: 'hidden',
   },
-  suggestionName: { fontSize: 12, color: colors.textMuted },
+  suggestionName: { fontSize: 12, color: theme.colors.textMuted },
 });

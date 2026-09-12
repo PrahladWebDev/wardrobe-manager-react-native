@@ -5,19 +5,21 @@ import Input from '../components/Input';
 import Button from '../components/Button';
 import Chip from '../components/Chip';
 import ItemCard from '../components/ItemCard';
-import { colors, typography } from '../theme/colors';
-
-const OCCASIONS = ['casual', 'work', 'formal', 'lounge', 'travel', 'party'];
+import { useTheme } from '../context/ThemeContext';
+import { DRESS_CODES } from '../constants/dressCodes';
 
 // Shared create/edit form. If route.params.outfit is passed, this screen edits that outfit instead.
 export default function CreateOutfitScreen({ navigation, route }) {
+  const theme = useTheme();
+  const styles = makeStyles(theme);
   const existing = route.params?.outfit || null;
   const isEdit = !!existing;
+  const preset = route.params?.preset || null; // { items, name, occasion } — prefill a NEW outfit without editing one
 
   const [items, setItems] = useState([]);
-  const [selected, setSelected] = useState((existing?.items || []).map((i) => i._id));
-  const [name, setName] = useState(existing?.name || '');
-  const [occasion, setOccasion] = useState(existing?.occasion || 'casual');
+  const [selected, setSelected] = useState(existing ? (existing.items || []).map((i) => i._id) : (preset?.items || []));
+  const [name, setName] = useState(existing?.name || preset?.name || '');
+  const [occasion, setOccasion] = useState(existing?.occasion || preset?.occasion || 'casual');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -59,11 +61,11 @@ export default function CreateOutfitScreen({ navigation, route }) {
         <Input label="Outfit name" value={name} onChangeText={setName} placeholder="e.g. Casual Weekend" />
         <Text style={styles.sectionLabel}>Occasion</Text>
         <FlatList
-          data={OCCASIONS}
+          data={DRESS_CODES}
           horizontal
           showsHorizontalScrollIndicator={false}
-          keyExtractor={(o) => o}
-          renderItem={({ item: o }) => <Chip label={o} active={occasion === o} onPress={() => setOccasion(o)} />}
+          keyExtractor={(d) => d.key}
+          renderItem={({ item: d }) => <Chip label={d.label} active={occasion === d.key} onPress={() => setOccasion(d.key)} />}
           style={{ marginBottom: 12 }}
         />
         <Text style={styles.sectionLabel}>Select pieces ({selected.length} selected)</Text>
@@ -87,7 +89,7 @@ export default function CreateOutfitScreen({ navigation, route }) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg },
-  sectionLabel: { ...typography.label, textTransform: 'uppercase', marginBottom: 8 },
+const makeStyles = (theme) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: theme.colors.bg },
+  sectionLabel: { ...theme.typography.label, textTransform: 'uppercase', marginBottom: 8 },
 });

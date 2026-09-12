@@ -55,12 +55,13 @@ exports.me = async (req, res) => {
 // PUT /api/auth/me
 exports.updateMe = async (req, res) => {
   try {
-    const { name, homeCity, homeLat, homeLon, avatarUrl } = req.body;
+    const { name, homeCity, homeLat, homeLon, avatarUrl, rotationDays } = req.body;
     const user = req.user;
     if (name !== undefined) user.name = name;
     if (homeCity !== undefined) user.homeCity = homeCity;
     if (homeLat !== undefined) user.homeLat = homeLat;
     if (homeLon !== undefined) user.homeLon = homeLon;
+    if (rotationDays !== undefined) user.rotationDays = Math.max(0, Math.min(60, Number(rotationDays) || 0));
     if (req.file) {
       const uploaded = await uploadAvatarBuffer(req.file.buffer);
       user.avatarUrl = uploaded.secure_url;

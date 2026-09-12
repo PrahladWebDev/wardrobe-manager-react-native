@@ -3,12 +3,14 @@ import { View, Text, StyleSheet, Alert, ActivityIndicator, TouchableOpacity } fr
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../api/client';
-import { colors, radius, typography } from '../theme/colors';
+import { useTheme } from '../context/ThemeContext';
 
 // Scans a barcode, looks it up via the backend (/items/lookup-barcode), then
 // jumps back to AddItemScreen with whatever fields were found pre-filled.
 // If nothing is found the person can just fill the item in by hand as usual.
 export default function BarcodeScanScreen({ navigation }) {
+  const theme = useTheme();
+  const styles = makeStyles(theme);
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
   const [looking, setLooking] = useState(false);
@@ -42,8 +44,8 @@ export default function BarcodeScanScreen({ navigation }) {
   if (!permission.granted) {
     return (
       <View style={[styles.container, styles.centered]}>
-        <Ionicons name="barcode-outline" size={40} color={colors.textFaint} />
-        <Text style={[typography.body, { marginTop: 12, marginBottom: 16, textAlign: 'center' }]}>
+        <Ionicons name="barcode-outline" size={40} color={theme.colors.textFaint} />
+        <Text style={[theme.typography.body, { marginTop: 12, marginBottom: 16, textAlign: 'center' }]}>
           Camera access is needed to scan barcodes.
         </Text>
         <TouchableOpacity style={styles.permBtn} onPress={requestPermission}>
@@ -68,19 +70,19 @@ export default function BarcodeScanScreen({ navigation }) {
       {looking && (
         <View style={styles.loadingOverlay}>
           <ActivityIndicator color="#fff" size="large" />
-          <Text style={[typography.body, { color: '#fff', marginTop: 12 }]}>Looking it up…</Text>
+          <Text style={[theme.typography.body, { color: '#fff', marginTop: 12 }]}>Looking it up…</Text>
         </View>
       )}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.black },
+const makeStyles = (theme) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: theme.colors.black },
   centered: { alignItems: 'center', justifyContent: 'center', padding: 30 },
-  permBtn: { backgroundColor: colors.accent, paddingHorizontal: 24, paddingVertical: 14, borderRadius: radius.pill },
+  permBtn: { backgroundColor: theme.colors.accent, paddingHorizontal: 24, paddingVertical: 14, borderRadius: theme.radius.pill },
   overlay: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  frame: { width: 260, height: 160, borderWidth: 3, borderColor: '#fff', borderRadius: radius.md, opacity: 0.9 },
+  frame: { width: 260, height: 160, borderWidth: 3, borderColor: '#fff', borderRadius: theme.radius.md, opacity: 0.9 },
   hint: { color: '#fff', marginTop: 16, fontSize: 14, fontWeight: '600' },
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.55)',
