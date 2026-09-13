@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Alert } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Alert, TouchableOpacity } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import Input from '../components/Input';
-import Button from '../components/Button';
+import AnimatedPillButton from '../components/AnimatedPillButton';
+import AuthHero from '../components/AuthHero';
+import FadeInUp from '../components/FadeInUp';
 import { useTheme } from '../context/ThemeContext';
 
 export default function LoginScreen({ navigation }) {
@@ -29,23 +30,25 @@ export default function LoginScreen({ navigation }) {
   return (
     <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-        <View style={styles.logoWrap}>
-          <Ionicons name="shirt" size={40} color={theme.colors.accent} />
-          <Text style={[theme.typography.h1, { marginTop: theme.spacing(3) }]}>Wardrobe</Text>
-          <Text style={theme.typography.bodyMuted}>Your closet, organized.</Text>
-        </View>
+        <AuthHero title="Welcome back" subtitle="Your closet, organized." />
 
-        <Input label="Email" autoCapitalize="none" keyboardType="email-address" value={email} onChangeText={setEmail} placeholder="you@example.com" />
-        <Input label="Password" secureTextEntry value={password} onChangeText={setPassword} placeholder="••••••••" />
+        <FadeInUp delay={280} distance={18}>
+          <Input label="Email" autoCapitalize="none" keyboardType="email-address" value={email} onChangeText={setEmail} placeholder="you@example.com" style={styles.pillInput} />
+        </FadeInUp>
+        <FadeInUp delay={340} distance={18}>
+          <Input label="Password" secureTextEntry value={password} onChangeText={setPassword} placeholder="••••••••" style={styles.pillInput} />
+        </FadeInUp>
 
-        <Button title="Log In" onPress={handleLogin} loading={loading} style={{ marginTop: theme.spacing(2) }} />
+        <FadeInUp delay={400} distance={18}>
+          <AnimatedPillButton title="Log In" onPress={handleLogin} loading={loading} style={{ marginTop: theme.spacing(2) }} />
+        </FadeInUp>
 
-        <Button
-          title="Create an account"
-          variant="ghost"
-          onPress={() => navigation.navigate('Register')}
-          style={{ marginTop: theme.spacing(3) }}
-        />
+        <FadeInUp delay={460} distance={18}>
+          <TouchableOpacity onPress={() => navigation.navigate('Register')} style={styles.switchRow}>
+            <Text style={styles.switchMuted}>New here? </Text>
+            <Text style={styles.switchLink}>Create an account</Text>
+          </TouchableOpacity>
+        </FadeInUp>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -54,6 +57,8 @@ export default function LoginScreen({ navigation }) {
 const makeStyles = (theme) => StyleSheet.create({
   flex: { flex: 1, backgroundColor: theme.colors.bg },
   container: { flexGrow: 1, justifyContent: 'center', padding: 24 },
-  logoWrap: { alignItems: 'center', marginBottom: 32 },
-  hint: { ...theme.typography.bodyMuted, textAlign: 'center', marginTop: 12, fontSize: 12 },
+  pillInput: { borderRadius: theme.radius.pill, paddingHorizontal: 20 },
+  switchRow: { flexDirection: 'row', justifyContent: 'center', marginTop: theme.spacing(5) },
+  switchMuted: { ...theme.typography.bodyMuted },
+  switchLink: { ...theme.typography.bodyMuted, color: theme.colors.accent, fontWeight: '700' },
 });
