@@ -195,7 +195,7 @@ function AuthStackNav() {
       <AuthStack.Screen
         name="Settings"
         component={SettingsScreen}
-        options={{ headerShown: true, title: 'Server Settings', presentation: 'modal' }}
+        options={{ headerShown: true, title: 'Settings', presentation: 'modal' }}
       />
     </AuthStack.Navigator>
   );
@@ -241,7 +241,7 @@ export default function AppNavigator() {
             <RootStack.Screen
               name="Settings"
               component={SettingsScreen}
-              options={{ headerShown: true, title: 'Server Settings', presentation: 'modal' }}
+              options={{ headerShown: true, title: 'Settings', presentation: 'modal' }}
             />
           </RootStack.Group>
         ) : (

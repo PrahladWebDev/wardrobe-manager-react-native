@@ -1,9 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { getBaseURL, setBaseURL, testConnection, DEFAULT_BASE_URL } from '../api/client';
-import Input from '../components/Input';
-import Button from '../components/Button';
 import Card from '../components/Card';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
@@ -36,21 +33,13 @@ function ThemeSwatch({ option, active, onPress, mutedColor }) {
   );
 }
 
-// Reachable both before login (first-run server setup) and from Profile afterwards.
-export default function SettingsScreen({ navigation }) {
+// Reachable from Profile -> Appearance & Settings.
+export default function SettingsScreen() {
   const theme = useTheme();
   const styles = makeStyles(theme);
   const { user, updateProfile } = useAuth();
-  const [url, setUrl] = useState('');
-  const [testing, setTesting] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [status, setStatus] = useState(null); // 'ok' | 'fail' | null
   const [rotationDays, setRotationDays] = useState(user?.rotationDays ?? 5);
   const [savingRotation, setSavingRotation] = useState(false);
-
-  useEffect(() => {
-    (async () => setUrl(await getBaseURL()))();
-  }, []);
 
   const adjustRotation = async (delta) => {
     const next = Math.max(0, Math.min(30, rotationDays + delta));
@@ -62,34 +51,6 @@ export default function SettingsScreen({ navigation }) {
       Alert.alert('Error', err.message);
     } finally {
       setSavingRotation(false);
-    }
-  };
-
-  const handleTest = async () => {
-    setTesting(true);
-    setStatus(null);
-    try {
-      await testConnection(url);
-      setStatus('ok');
-    } catch (err) {
-      setStatus('fail');
-      Alert.alert('Could not reach server', `${err.message}\n\nMake sure the backend is running and reachable from your phone (same WiFi, correct IP/port).`);
-    } finally {
-      setTesting(false);
-    }
-  };
-
-  const handleSave = async () => {
-    if (!url.trim()) return Alert.alert('Missing URL', 'Enter your backend server URL');
-    setSaving(true);
-    try {
-      await setBaseURL(url);
-      Alert.alert('Saved', 'Server address updated.');
-      if (navigation.canGoBack()) navigation.goBack();
-    } catch (err) {
-      Alert.alert('Error', err.message);
-    } finally {
-      setSaving(false);
     }
   };
 
@@ -120,7 +81,7 @@ export default function SettingsScreen({ navigation }) {
           <Text style={[theme.typography.bodyMuted, { marginBottom: 16 }]}>
             Suggestions and "Surprise Me" will avoid re-offering something you wore within this many days, when possible.
           </Text>
-          <Card style={{ marginBottom: 28, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Card style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
             <TouchableOpacity
               onPress={() => adjustRotation(-1)}
               disabled={savingRotation || rotationDays <= 0}
@@ -142,46 +103,12 @@ export default function SettingsScreen({ navigation }) {
           </Card>
         </>
       )}
-
-      <Text style={[theme.typography.h1, { marginBottom: 4 }]}>Server Settings</Text>
-      <Text style={[theme.typography.bodyMuted, { marginBottom: 20 }]}>
-        Point the app at your backend. Use your computer's LAN IP for a phone on the same WiFi (e.g. http://192.168.1.50:5000), 10.0.2.2 for the Android emulator, or your deployed API URL.
-      </Text>
-
-      <Input
-        label="Backend URL"
-        value={url}
-        onChangeText={setUrl}
-        placeholder={DEFAULT_BASE_URL}
-        autoCapitalize="none"
-        autoCorrect={false}
-        keyboardType="url"
-      />
-
-      {status && (
-        <Card style={[styles.statusCard, status === 'ok' ? styles.ok : styles.fail]}>
-          <Ionicons
-            name={status === 'ok' ? 'checkmark-circle' : 'close-circle'}
-            size={18}
-            color={status === 'ok' ? theme.colors.success : theme.colors.danger}
-          />
-          <Text style={[theme.typography.bodyMuted, { marginLeft: 8 }]}>
-            {status === 'ok' ? 'Connected successfully!' : 'Could not connect.'}
-          </Text>
-        </Card>
-      )}
-
-      <Button title="Test Connection" variant="outline" onPress={handleTest} loading={testing} style={{ marginTop: theme.spacing(2) }} />
-      <Button title="Save" onPress={handleSave} loading={saving} style={{ marginTop: 10 }} />
     </ScrollView>
   );
 }
 
 const makeStyles = (theme) => StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.bg },
-  statusCard: { flexDirection: 'row', alignItems: 'center', marginTop: 12 },
-  ok: { backgroundColor: theme.colors.successSoft },
-  fail: { backgroundColor: theme.colors.dangerSoft },
   stepperBtn: {
     width: 40, height: 40, borderRadius: theme.radius.pill,
     borderWidth: theme.border.width, borderColor: theme.colors.text,
