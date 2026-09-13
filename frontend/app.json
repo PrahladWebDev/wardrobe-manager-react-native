@@ -23,13 +23,11 @@
         "android.permission.CAMERA",
         "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.RECORD_AUDIO"
       ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#FFFFFF"
+        "backgroundColor": "#F7F1E4"
       }
     },
     "web": {
@@ -69,8 +67,9 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "0aa958cc-9ae6-4a09-b5d1-e760575db5c8"
+        "projectId": "7f275af4-bd95-48eb-a24a-0744a6526946"
       }
-    }
+    },
+    "owner": "prahladsingh7512"
   }
 }

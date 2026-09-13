@@ -1,5 +1,5 @@
 import React from 'react';
-import { TouchableOpacity, View } from 'react-native';
+import { TouchableOpacity, View, ActivityIndicator } from 'react-native';
 import { NavigationContainer, DefaultTheme, DarkTheme, getFocusedRouteNameFromRoute } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -201,10 +201,19 @@ function AuthStackNav() {
   );
 }
 
+function StartupLoading() {
+  const theme = useTheme();
+  return (
+    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.bg }}>
+      <ActivityIndicator size="small" color={theme.colors.accent} />
+    </View>
+  );
+}
+
 export default function AppNavigator() {
   const { user, loading } = useAuth();
   const theme = useTheme();
-  if (loading) return null;
+  if (loading) return <StartupLoading />;
 
   const navTheme = {
     ...(theme.mode === 'dark' ? DarkTheme : DefaultTheme),
