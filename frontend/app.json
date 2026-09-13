@@ -37,6 +37,14 @@
     },
     "plugins": [
       [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#F7F1E4",
+          "image": "./assets/splash.png",
+          "imageWidth": 180
+        }
+      ],
+      [
         "expo-location",
         {
           "locationAlwaysAndWhenInUsePermission": "Allow Wardrobe Manager to use your location to suggest weather-appropriate outfits."

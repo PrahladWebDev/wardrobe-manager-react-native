@@ -149,20 +149,18 @@ function MainTabs() {
               backgroundColor: theme.colors.surface,
               borderWidth: theme.border.width,
               borderColor: theme.colors.text,
-              paddingTop: 8,
+              paddingTop: 0,
+              paddingHorizontal: 0,
               ...theme.shadow.card,
             },
             tabBarItemStyle: {
               borderRadius: theme.radius.pill,
-              marginHorizontal: 4,
+              flex: 1,
+              marginHorizontal: 2,
               marginVertical: 6,
               height: 44,
               alignItems: 'center',
               justifyContent: 'center',
-            },
-            tabBarIconStyle: {
-              alignSelf: 'center',
-              marginTop: 0,
             },
             tabBarIcon: ({ color, size }) => {
               const icons = {
