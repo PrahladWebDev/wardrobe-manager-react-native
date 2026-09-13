@@ -195,6 +195,90 @@ const creamInk = build('creamInk', 'Cream Ink', 'light', {
   onAccent: '#FFFFFF',
 }, { gradient: ['#5B4FE0', '#8B7FF0'] });
 
+// 7. Sunset Clay (warm light, terracotta + mustard)
+const sunsetClay = build('sunsetClay', 'Sunset Clay', 'light', {
+  bg: '#FDF6ED',
+  surface: '#FFFFFF',
+  surfaceAlt: '#F5E9D8',
+  border: '#E9D6B8',
+  text: '#2B2117',
+  textMuted: '#8A7650',
+  textFaint: '#B8A98E',
+  accent: '#E08A3E',
+  accentSoft: '#FBE3C4',
+  success: '#5C8A50',
+  successSoft: '#E4EFDC',
+  danger: '#C2543D',
+  dangerSoft: '#F7DCD2',
+  info: '#C99A32',
+  infoSoft: '#F5EBCB',
+  black: '#000000',
+  onAccent: '#FFFFFF',
+}, { gradient: ['#E08A3E', '#F2B15E'] });
+
+// 8. Obsidian Ink (near-black premium dark, cool violet accent)
+const obsidianInk = build('obsidianInk', 'Obsidian Ink', 'dark', {
+  bg: '#0A0A0D',
+  surface: '#141419',
+  surfaceAlt: '#1C1C24',
+  border: '#2A2A34',
+  text: '#F0EFF5',
+  textMuted: '#9C9BAA',
+  textFaint: '#68677A',
+  accent: '#8B7CF6',
+  accentSoft: '#2A2445',
+  success: '#5FBF8F',
+  successSoft: '#1B2E24',
+  danger: '#E2666B',
+  dangerSoft: '#3A2224',
+  info: '#6FA8DC',
+  infoSoft: '#1E2C38',
+  black: '#000000',
+  onAccent: '#100C24',
+}, { gradient: ['#8B7CF6', '#5A4FC7'] });
+
+// 9. Ocean Mist (cool light, teal + navy)
+const oceanMist = build('oceanMist', 'Ocean Mist', 'light', {
+  bg: '#F2F8F8',
+  surface: '#FFFFFF',
+  surfaceAlt: '#E4F0EF',
+  border: '#CFE4E2',
+  text: '#132B2C',
+  textMuted: '#5C7B7C',
+  textFaint: '#93AFAF',
+  accent: '#1D8A8A',
+  accentSoft: '#D3ECEA',
+  success: '#3E9B6B',
+  successSoft: '#DDF1E6',
+  danger: '#C24F4F',
+  dangerSoft: '#F6DCDC',
+  info: '#2D6E9E',
+  infoSoft: '#DBE9F2',
+  black: '#000000',
+  onAccent: '#FFFFFF',
+}, { gradient: ['#1D8A8A', '#3FB3AE'] });
+
+// 10. Crimson Noir (bold dark, deep red + charcoal)
+const crimsonNoir = build('crimsonNoir', 'Crimson Noir', 'dark', {
+  bg: '#120D0D',
+  surface: '#1C1414',
+  surfaceAlt: '#241A1A',
+  border: '#362424',
+  text: '#F5EBEA',
+  textMuted: '#B3938F',
+  textFaint: '#785F5C',
+  accent: '#D9455A',
+  accentSoft: '#3A1F24',
+  success: '#5FA87A',
+  successSoft: '#1E2E23',
+  danger: '#E2666B',
+  dangerSoft: '#3A2224',
+  info: '#7FA8C9',
+  infoSoft: '#1E2A34',
+  black: '#000000',
+  onAccent: '#FFFFFF',
+}, { gradient: ['#D9455A', '#8C2C3A'] });
+
 export const themes = {
   creamInk,
   warmLight,
@@ -202,6 +286,10 @@ export const themes = {
   roseQuartz,
   emeraldNoir,
   slate,
+  sunsetClay,
+  obsidianInk,
+  oceanMist,
+  crimsonNoir,
 };
 
 export const themeList = Object.values(themes).map((t) => ({ id: t.id, name: t.name, mode: t.mode, accent: t.colors.accent, bg: t.colors.bg, surface: t.colors.surface }));

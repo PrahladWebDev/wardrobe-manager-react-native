@@ -65,11 +65,11 @@
       "expo-font",
       "expo-status-bar"
     ],
+    "owner": "prahladsingh7512",
     "extra": {
       "eas": {
         "projectId": "7f275af4-bd95-48eb-a24a-0744a6526946"
       }
-    },
-    "owner": "prahladsingh7512"
+    }
   }
 }

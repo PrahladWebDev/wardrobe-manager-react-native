@@ -84,7 +84,15 @@ export default function ProfileScreen() {
         </View>
       </View>
 
-      <TouchableOpacity onPress={() => navigation.navigate('PackingList')}>
+      <TouchableOpacity onPress={() => navigation.navigate('Settings')}>
+        <Card style={styles.menuCard}>
+          <Ionicons name="color-palette-outline" size={20} color={theme.colors.accent} />
+          <Text style={[theme.typography.h3, { marginLeft: 12, flex: 1 }]}>Appearance & Settings</Text>
+          <Ionicons name="chevron-forward" size={18} color={theme.colors.textFaint} />
+        </Card>
+      </TouchableOpacity>
+
+      <TouchableOpacity onPress={() => navigation.navigate('PackingList')} style={{ marginTop: 12 }}>
         <Card style={styles.menuCard}>
           <Ionicons name="briefcase-outline" size={20} color={theme.colors.accent} />
           <Text style={[theme.typography.h3, { marginLeft: 12, flex: 1 }]}>Plan a Trip Packing List</Text>
