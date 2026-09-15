@@ -1,13 +1,22 @@
-import React, { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, Alert, Linking } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, Linking, RefreshControl } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from '@react-navigation/native';
 import api from '../api/client';
+import Screen from '../components/Screen';
 import Card from '../components/Card';
 import Chip from '../components/Chip';
+import Thumb from '../components/Thumb';
 import PillBadge from '../components/PillBadge';
+import IconButton from '../components/IconButton';
+import StatTile from '../components/StatTile';
 import EmptyState from '../components/EmptyState';
+import ErrorState from '../components/ErrorState';
+import ActionSheet from '../components/ActionSheet';
+import { SkeletonList } from '../components/Skeleton';
 import { useTheme } from '../context/ThemeContext';
+import { useToast } from '../context/ToastContext';
+import useFocusedFetch from '../hooks/useFocusedFetch';
+import { haptic } from '../utils/haptics';
 
 const PRIORITY_META = {
   high: { label: 'High', tone: 'danger' },
@@ -20,54 +29,44 @@ const FILTERS = [
   { key: 'purchased', label: 'Purchased' },
 ];
 
+const formatMoney = (n) => `₹${Number(n || 0).toLocaleString('en-IN')}`;
+
 export default function WishlistScreen({ navigation }) {
   const theme = useTheme();
   const styles = makeStyles(theme);
-  const [items, setItems] = useState([]);
-  const [summary, setSummary] = useState(null);
+  const toast = useToast();
   const [filter, setFilter] = useState('active');
-  const [loading, setLoading] = useState(false);
+  const [actionItem, setActionItem] = useState(null);
 
-  const load = useCallback(async (f = filter) => {
-    setLoading(true);
-    try {
-      const { data } = await api.get('/wishlist', { params: { purchased: f === 'purchased' } });
-      setItems(data.items || []);
-      setSummary(data.summary || null);
-    } catch (err) {
-      console.warn(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [filter]);
+  const { data, status, error, refreshing, refresh, reload, setData } = useFocusedFetch(
+    () => api.get('/wishlist', { params: { purchased: filter === 'purchased' } }).then((r) => ({ items: r.data.items || [], summary: r.data.summary || null })),
+    [filter]
+  );
+  const items = data?.items || [];
+  const summary = data?.summary;
 
-  useFocusEffect(useCallback(() => { load(filter); }, [load, filter]));
-
-  const togglePurchased = async (item) => {
-    if (!item.purchased) {
-      Alert.alert('Mark as purchased?', `Add "${item.name}" to your wardrobe too?`, [
-        { text: 'Just mark purchased', onPress: () => markPurchased(item, false) },
-        { text: 'Add to wardrobe', onPress: () => markPurchased(item, true) },
-        { text: 'Cancel', style: 'cancel' },
-      ]);
-    } else {
-      markPurchased(item, false, false);
-    }
-  };
+  const removeLocal = (id) => setData((prev) => (prev ? { ...prev, items: prev.items.filter((i) => i._id !== id) } : prev));
 
   const markPurchased = async (item, addToWardrobe, purchased = true) => {
     try {
-      const { data } = await api.patch(`/wishlist/${item._id}/purchased`, { purchased, addToWardrobe });
-      setItems((prev) => prev.filter((i) => i._id !== item._id));
-      if (addToWardrobe && data.item.linkedItem) {
-        Alert.alert('Added!', 'It\'s now in your wardrobe too.');
-      }
+      const { data: res } = await api.patch(`/wishlist/${item._id}/purchased`, { purchased, addToWardrobe });
+      removeLocal(item._id);
+      haptic.success();
+      if (addToWardrobe && res.item.linkedItem) toast('Marked purchased and added to your closet');
+      else toast(purchased ? 'Marked as purchased' : 'Moved back to wishlist');
     } catch (err) {
-      Alert.alert('Error', err.message);
+      haptic.error();
+      toast(err.message, 'error');
     }
   };
 
+  const togglePurchased = (item) => {
+    if (item.purchased) return markPurchased(item, false, false);
+    setActionItem({ ...item, mode: 'purchase' });
+  };
+
   const handleDelete = (item) => {
+    haptic.warning();
     Alert.alert('Remove from wishlist', `Remove "${item.name}"?`, [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -76,115 +75,111 @@ export default function WishlistScreen({ navigation }) {
         onPress: async () => {
           try {
             await api.delete(`/wishlist/${item._id}`);
-            setItems((prev) => prev.filter((i) => i._id !== item._id));
+            removeLocal(item._id);
+            toast('Removed from wishlist');
           } catch (err) {
-            Alert.alert('Error', err.message);
+            toast(err.message, 'error');
           }
         },
       },
     ]);
   };
 
+  const renderEmpty = () => {
+    if (status === 'loading') return <SkeletonList count={4} thumb={52} style={{ paddingHorizontal: 20 }} />;
+    if (status === 'error') return <ErrorState message={error} onRetry={reload} />;
+    return (
+      <EmptyState
+        icon="bag-handle-outline"
+        title={filter === 'active' ? 'Nothing on your wishlist' : 'Nothing purchased yet'}
+        subtitle={filter === 'active' ? 'Keep track of pieces you want before you buy them.' : 'Items you mark purchased show up here.'}
+        action={filter === 'active' ? { label: 'Add something', onPress: () => navigation.navigate('WishlistForm') } : undefined}
+      />
+    );
+  };
+
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={theme.typography.h1}>🛍️ Wishlist</Text>
-        <TouchableOpacity style={styles.addBtn} onPress={() => navigation.navigate('WishlistForm')}>
-          <Ionicons name="add" size={22} color={theme.colors.onAccent} />
-        </TouchableOpacity>
+    <Screen safeTop={false} tabInset={false} padded={false}>
+      <View style={styles.topRow}>
+        <View style={{ flexDirection: 'row' }}>
+          {FILTERS.map((f) => (
+            <Chip key={f.key} label={f.label} small active={filter === f.key} onPress={() => setFilter(f.key)} />
+          ))}
+        </View>
+        <IconButton name="add" label="Add to wishlist" variant="filled" size={24} onPress={() => navigation.navigate('WishlistForm')} />
       </View>
 
-      {filter === 'active' && summary && (
-        <Card style={styles.summaryCard}>
-          <View style={{ flex: 1 }}>
-            <Text style={theme.typography.h2}>₹{summary.totalEstimated}</Text>
-            <Text style={theme.typography.label}>ESTIMATED TOTAL</Text>
-          </View>
-          <View style={{ flex: 1, alignItems: 'flex-end' }}>
-            <Text style={theme.typography.h2}>{summary.count}</Text>
-            <Text style={theme.typography.label}>ITEMS WANTED</Text>
-          </View>
-        </Card>
+      {filter === 'active' && summary && status === 'ready' && (
+        <View style={styles.summaryRow}>
+          <StatTile value={formatMoney(summary.totalEstimated)} label="Estimated total" compact />
+          <StatTile value={summary.count} label="Wanted" compact />
+          <StatTile value={summary.highPriorityCount} label="High priority" compact tone={summary.highPriorityCount ? 'danger' : 'neutral'} />
+        </View>
       )}
 
-      <View style={{ flexDirection: 'row', paddingHorizontal: 20, marginTop: 12, marginBottom: 4, gap: 8 }}>
-        {FILTERS.map((f) => (
-          <Chip key={f.key} label={f.label} active={filter === f.key} onPress={() => setFilter(f.key)} />
-        ))}
-      </View>
-
       <FlatList
-        data={items}
+        data={status === 'ready' ? items : []}
         keyExtractor={(i) => i._id}
-        contentContainerStyle={{ padding: 16, paddingBottom: 110 }}
-        refreshing={loading}
-        onRefresh={() => load(filter)}
+        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 40, flexGrow: 1 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={theme.colors.accent} colors={[theme.colors.accent]} />}
         renderItem={({ item }) => {
           const meta = PRIORITY_META[item.priority] || PRIORITY_META.medium;
           return (
-            <TouchableOpacity
+            <Card
               style={styles.card}
               onPress={() => navigation.navigate('WishlistForm', { item })}
-              onLongPress={() => handleDelete(item)}
-              activeOpacity={0.85}
+              onLongPress={() => setActionItem({ ...item, mode: 'menu' })}
+              accessibilityLabel={`${item.name}${item.estimatedPrice ? `, ${formatMoney(item.estimatedPrice)}` : ''}, ${meta.label} priority`}
             >
-              <View style={styles.thumb}>
-                {item.imageUrl ? (
-                  <Image source={{ uri: item.imageUrl }} style={{ width: '100%', height: '100%' }} />
-                ) : (
-                  <Ionicons name="bag-outline" size={22} color={theme.colors.textFaint} />
-                )}
-              </View>
+              <Thumb uri={item.imageUrl} category={item.category || 'bag'} size={52} />
               <View style={{ flex: 1, marginLeft: 12 }}>
                 <Text style={theme.typography.h3} numberOfLines={1}>{item.name}</Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4, gap: 8 }}>
-                  {item.estimatedPrice > 0 && <Text style={theme.typography.bodyMuted}>₹{item.estimatedPrice}</Text>}
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4, gap: 8, flexWrap: 'wrap' }}>
+                  {item.estimatedPrice > 0 && <Text style={theme.typography.bodyMuted}>{formatMoney(item.estimatedPrice)}</Text>}
                   {!item.purchased && <PillBadge label={meta.label} tone={meta.tone} />}
+                  {item.brand ? <Text style={theme.typography.caption}>{item.brand}</Text> : null}
                 </View>
                 {item.link ? (
-                  <TouchableOpacity onPress={() => Linking.openURL(item.link)} style={{ marginTop: 4 }}>
-                    <Text style={[theme.typography.bodyMuted, { color: theme.colors.accent, textDecorationLine: 'underline' }]}>View listing</Text>
+                  <TouchableOpacity onPress={() => Linking.openURL(item.link)} style={{ marginTop: 4, alignSelf: 'flex-start' }} hitSlop={theme.hitSlop} accessibilityRole="link" accessibilityLabel="View listing">
+                    <Text style={[theme.typography.caption, { color: theme.colors.accent, textDecorationLine: 'underline' }]}>View listing</Text>
                   </TouchableOpacity>
                 ) : null}
               </View>
-              <TouchableOpacity onPress={() => togglePurchased(item)} style={styles.checkBtn}>
-                <Ionicons
-                  name={item.purchased ? 'checkmark-circle' : 'ellipse-outline'}
-                  size={26}
-                  color={item.purchased ? theme.colors.success : theme.colors.textFaint}
-                />
-              </TouchableOpacity>
-            </TouchableOpacity>
+              <IconButton
+                name={item.purchased ? 'checkmark-circle' : 'ellipse-outline'}
+                label={item.purchased ? 'Move back to wishlist' : 'Mark as purchased'}
+                color={item.purchased ? theme.colors.success : theme.colors.textFaint}
+                size={26}
+                onPress={() => togglePurchased(item)}
+              />
+            </Card>
           );
         }}
-        ListEmptyComponent={
-          <EmptyState
-            icon="bag-handle-outline"
-            title={filter === 'active' ? 'Nothing on your wishlist' : 'Nothing purchased yet'}
-            subtitle={filter === 'active' ? 'Tap + to add something you want to buy' : 'Items you mark purchased show up here'}
-          />
+        ListEmptyComponent={renderEmpty()}
+      />
+
+      <ActionSheet
+        visible={!!actionItem}
+        title={actionItem?.name}
+        subtitle={actionItem?.mode === 'purchase' ? 'Mark as purchased' : undefined}
+        onClose={() => setActionItem(null)}
+        actions={
+          !actionItem ? [] : actionItem.mode === 'purchase' ? [
+            { label: 'Purchased, add to my closet', icon: 'shirt-outline', subtitle: 'Creates a wardrobe item with these details', onPress: () => markPurchased(actionItem, true) },
+            { label: 'Just mark purchased', icon: 'checkmark-circle-outline', onPress: () => markPurchased(actionItem, false) },
+          ] : [
+            { label: 'Edit', icon: 'create-outline', onPress: () => navigation.navigate('WishlistForm', { item: actionItem }) },
+            ...(actionItem.link ? [{ label: 'Open listing', icon: 'open-outline', onPress: () => Linking.openURL(actionItem.link) }] : []),
+            { label: 'Remove from wishlist', icon: 'trash-outline', destructive: true, onPress: () => handleDelete(actionItem) },
+          ]
         }
       />
-    </View>
+    </Screen>
   );
 }
 
 const makeStyles = (theme) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.colors.bg },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 16 },
-  addBtn: {
-    width: 40, height: 40, borderRadius: theme.radius.pill, backgroundColor: theme.colors.accent,
-    borderWidth: theme.border.width, borderColor: theme.colors.text, alignItems: 'center', justifyContent: 'center',
-  },
-  summaryCard: { flexDirection: 'row', marginHorizontal: 20, marginTop: 16 },
-  card: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: theme.colors.surface,
-    borderRadius: theme.radius.lg, borderWidth: theme.border.width, borderColor: theme.colors.text,
-    padding: 14, marginBottom: 12, ...theme.shadow.subtle,
-  },
-  thumb: {
-    width: 50, height: 50, borderRadius: theme.radius.sm, backgroundColor: theme.colors.surfaceAlt,
-    alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
-  },
-  checkBtn: { paddingLeft: 8 },
+  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, marginBottom: 6 },
+  summaryRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 20, marginTop: 8, marginBottom: 6 },
+  card: { flexDirection: 'row', alignItems: 'center', padding: 12, marginBottom: 12, ...theme.shadow.subtle },
 });

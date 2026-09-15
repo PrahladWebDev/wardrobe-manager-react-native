@@ -1,21 +1,28 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { Alert } from 'react-native';
 import api from '../api/client';
+import Screen from '../components/Screen';
 import Input from '../components/Input';
 import Button from '../components/Button';
 import Chip from '../components/Chip';
+import Field from '../components/Field';
+import StickyFooter, { FOOTER_SPACE } from '../components/StickyFooter';
 import { useTheme } from '../context/ThemeContext';
+import { useToast } from '../context/ToastContext';
+import { haptic } from '../utils/haptics';
 
 const CATEGORIES = ['top', 'bottom', 'dress', 'outerwear', 'shoes', 'accessory', 'bag'];
 const PRIORITIES = [
-  { key: 'low', label: 'Low' },
-  { key: 'medium', label: 'Medium' },
-  { key: 'high', label: 'High' },
+  { key: 'low', label: 'Low', icon: 'remove-circle-outline' },
+  { key: 'medium', label: 'Medium', icon: 'ellipse-outline' },
+  { key: 'high', label: 'High', icon: 'flame-outline' },
 ];
+
+const isUrl = (s) => !s || /^https?:\/\/\S+$/i.test(s.trim());
 
 export default function WishlistFormScreen({ navigation, route }) {
   const theme = useTheme();
-  const styles = makeStyles(theme);
+  const toast = useToast();
   const existing = route.params?.item || null;
   const isEdit = !!existing;
 
@@ -27,36 +34,48 @@ export default function WishlistFormScreen({ navigation, route }) {
   const [imageUrl, setImageUrl] = useState(existing?.imageUrl || '');
   const [priority, setPriority] = useState(existing?.priority || 'medium');
   const [notes, setNotes] = useState(existing?.notes || '');
+  const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
 
+  const validate = () => {
+    const next = {};
+    if (!name.trim()) next.name = 'Give this wishlist item a name';
+    if (!isUrl(link)) next.link = 'Links start with http:// or https://';
+    if (!isUrl(imageUrl)) next.imageUrl = 'Image links start with http:// or https://';
+    if (estimatedPrice && Number.isNaN(Number(estimatedPrice))) next.estimatedPrice = 'Enter a number';
+    setErrors(next);
+    return Object.keys(next).length === 0;
+  };
+
   const handleSave = async () => {
-    if (!name.trim()) return Alert.alert('Missing name', 'Give this wishlist item a name');
+    if (!validate()) { haptic.warning(); return; }
     setSaving(true);
     try {
       const payload = {
         name: name.trim(),
-        category: category || undefined,
-        brand,
+        category: category || null,
+        brand: brand.trim(),
         estimatedPrice: estimatedPrice || 0,
-        link,
-        imageUrl,
+        link: link.trim(),
+        imageUrl: imageUrl.trim(),
         priority,
-        notes,
+        notes: notes.trim(),
       };
-      if (isEdit) {
-        await api.put(`/wishlist/${existing._id}`, payload);
-      } else {
-        await api.post('/wishlist', payload);
-      }
+      if (isEdit) await api.put(`/wishlist/${existing._id}`, payload);
+      else await api.post('/wishlist', payload);
+      haptic.success();
+      toast(isEdit ? 'Wishlist item updated' : `${name.trim()} added to your wishlist`);
       navigation.goBack();
     } catch (err) {
-      Alert.alert('Error', err.message);
+      haptic.error();
+      toast(err.message, 'error');
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = () => {
+    haptic.warning();
     Alert.alert('Remove item', `Remove "${existing.name}" from your wishlist?`, [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -65,52 +84,56 @@ export default function WishlistFormScreen({ navigation, route }) {
         onPress: async () => {
           try {
             await api.delete(`/wishlist/${existing._id}`);
+            toast('Removed from wishlist');
             navigation.goBack();
           } catch (err) {
-            Alert.alert('Error', err.message);
+            toast(err.message, 'error');
           }
         },
       },
     ]);
   };
 
+  const clearError = (key) => setErrors((e) => (e[key] ? { ...e, [key]: undefined } : e));
+
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView style={styles.container} contentContainerStyle={{ padding: 20, paddingBottom: 60 }}>
-        <Input label="Name" value={name} onChangeText={setName} placeholder="e.g. Brown Leather Boots" />
+    <Screen
+      safeTop={false}
+      tabInset={false}
+      scroll
+      keyboard
+      keyboardOffset={90}
+      contentStyle={{ paddingBottom: FOOTER_SPACE }}
+      footer={
+        <StickyFooter>
+          <Button title={isEdit ? 'Save changes' : 'Add to wishlist'} onPress={handleSave} loading={saving} />
+        </StickyFooter>
+      }
+    >
+      <Input label="Name" value={name} onChangeText={(t) => { setName(t); clearError('name'); }} placeholder="e.g. Brown leather boots" error={errors.name} />
 
-        <Text style={styles.sectionLabel}>Category (optional)</Text>
-        <View style={styles.chipWrap}>
-          {CATEGORIES.map((c) => (
-            <Chip key={c} label={c} active={category === c} onPress={() => setCategory(category === c ? '' : c)} style={{ marginBottom: 8 }} />
-          ))}
-        </View>
+      <Field label="Category (optional)">
+        {CATEGORIES.map((c) => (
+          <Chip key={c} label={c} small active={category === c} onPress={() => setCategory(category === c ? '' : c)} style={{ marginBottom: 8 }} />
+        ))}
+      </Field>
 
-        <Input label="Brand" value={brand} onChangeText={setBrand} placeholder="e.g. Clarks" />
-        <Input label="Estimated Price (₹)" value={estimatedPrice} onChangeText={setEstimatedPrice} placeholder="0" keyboardType="numeric" />
-        <Input label="Link (optional)" value={link} onChangeText={setLink} placeholder="https://..." autoCapitalize="none" />
-        <Input label="Image URL (optional)" value={imageUrl} onChangeText={setImageUrl} placeholder="https://..." autoCapitalize="none" />
+      <Input label="Brand" value={brand} onChangeText={setBrand} placeholder="e.g. Clarks" leftIcon="pricetag-outline" />
+      <Input label="Estimated price (₹)" value={estimatedPrice} onChangeText={(t) => { setEstimatedPrice(t); clearError('estimatedPrice'); }} placeholder="0" keyboardType="numeric" leftIcon="cash-outline" error={errors.estimatedPrice} />
+      <Input label="Link (optional)" value={link} onChangeText={(t) => { setLink(t); clearError('link'); }} placeholder="https://…" autoCapitalize="none" keyboardType="url" leftIcon="link-outline" error={errors.link} />
+      <Input label="Image URL (optional)" value={imageUrl} onChangeText={(t) => { setImageUrl(t); clearError('imageUrl'); }} placeholder="https://…" autoCapitalize="none" keyboardType="url" leftIcon="image-outline" error={errors.imageUrl} />
 
-        <Text style={styles.sectionLabel}>Priority</Text>
-        <View style={styles.chipWrap}>
-          {PRIORITIES.map((p) => (
-            <Chip key={p.key} label={p.label} active={priority === p.key} onPress={() => setPriority(p.key)} style={{ marginBottom: 8 }} />
-          ))}
-        </View>
+      <Field label="Priority">
+        {PRIORITIES.map((p) => (
+          <Chip key={p.key} label={p.label} small icon={p.icon} active={priority === p.key} onPress={() => setPriority(p.key)} style={{ marginBottom: 8 }} />
+        ))}
+      </Field>
 
-        <Input label="Notes" value={notes} onChangeText={setNotes} placeholder="Why you want it, size, color..." multiline style={{ height: 80, textAlignVertical: 'top' }} />
+      <Input label="Notes" value={notes} onChangeText={setNotes} placeholder="Why you want it, size, color…" multiline />
 
-        <Button title={isEdit ? 'Save Changes' : 'Add to Wishlist'} onPress={handleSave} loading={saving} style={{ marginTop: theme.spacing(4) }} />
-        {isEdit && (
-          <Button title="Remove" variant="danger" onPress={handleDelete} style={{ marginTop: 10 }} />
-        )}
-      </ScrollView>
-    </KeyboardAvoidingView>
+      {isEdit && (
+        <Button title="Remove from wishlist" icon="trash-outline" variant="danger" onPress={handleDelete} style={{ marginTop: theme.spacing(2) }} />
+      )}
+    </Screen>
   );
 }
-
-const makeStyles = (theme) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.colors.bg },
-  sectionLabel: { ...theme.typography.label, textTransform: 'uppercase', marginBottom: 8, marginTop: 4 },
-  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 16 },
-});

@@ -63,7 +63,9 @@
       ],
       "expo-notifications",
       "expo-font",
-      "expo-status-bar"
+      "expo-status-bar",
+      "expo-image",
+      "@react-native-community/datetimepicker"
     ],
     "owner": "prahladsingh7512",
     "extra": {

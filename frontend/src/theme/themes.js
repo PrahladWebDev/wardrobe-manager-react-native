@@ -49,8 +49,23 @@ function makeTypography(colors) {
     bodyMuted: { fontSize: 14, fontWeight: '400', color: colors.textMuted },
     label: { fontSize: 12, fontWeight: '600', color: colors.textMuted, letterSpacing: 0.4 },
     button: { fontSize: 15, fontWeight: '700' },
+    // Added so screens stop improvising fontSize: 11/12 overrides inline.
+    h4: { fontSize: 15, fontWeight: '700', color: colors.text },
+    caption: { fontSize: 12, fontWeight: '400', color: colors.textMuted },
+    small: { fontSize: 11, fontWeight: '600', color: colors.textMuted, letterSpacing: 0.3 },
   };
 }
+
+// Layout constants shared by every screen so the "dodge the floating tab bar"
+// padding is one number instead of 130 / 110 / 60 scattered around.
+const layout = {
+  screenPadding: 20,
+  tabBarHeight: 62,
+  tabBarInset: 110,
+};
+
+// Standard extra touch area for icon-only buttons (44px targets).
+const hitSlop = { top: 10, bottom: 10, left: 10, right: 10 };
 
 function build(id, name, mode, colors, extra = {}) {
   return {
@@ -61,6 +76,8 @@ function build(id, name, mode, colors, extra = {}) {
     radius,
     border,
     spacing,
+    layout,
+    hitSlop,
     shadow: makeShadow(mode === 'dark' ? '#000000' : colors.text),
     typography: makeTypography(colors),
     gradient: extra.gradient || [colors.accent, colors.accent],
@@ -292,6 +309,8 @@ export const themes = {
   crimsonNoir,
 };
 
-export const themeList = Object.values(themes).map((t) => ({ id: t.id, name: t.name, mode: t.mode, accent: t.colors.accent, bg: t.colors.bg, surface: t.colors.surface }));
+export const themeList = Object.values(themes).map((t) => ({
+  id: t.id, name: t.name, mode: t.mode, accent: t.colors.accent, onAccent: t.colors.onAccent, bg: t.colors.bg, surface: t.colors.surface,
+}));
 
 export const DEFAULT_THEME_ID = 'creamInk';

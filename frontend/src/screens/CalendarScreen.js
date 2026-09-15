@@ -1,36 +1,35 @@
-import React, { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, RefreshControl } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Calendar } from 'react-native-calendars';
-import { useFocusEffect } from '@react-navigation/native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import api from '../api/client';
+import Screen from '../components/Screen';
 import Card from '../components/Card';
+import Thumb from '../components/Thumb';
 import EmptyState from '../components/EmptyState';
+import ErrorState from '../components/ErrorState';
+import { SkeletonList } from '../components/Skeleton';
 import { useTheme } from '../context/ThemeContext';
+import useFocusedFetch from '../hooks/useFocusedFetch';
+import { mix } from '../utils/color';
+import { localDateStr, parseLocalDate, deviceTimeZone } from '../utils/dates';
 
-const todayStr = () => new Date().toISOString().slice(0, 10);
-
-// Heatmap shading for the wear calendar — lighter accent for a single wear,
-// full accent (with white text) for 3+ wears in a day. Computed per-theme
-// since it depends on the active accent color.
-const getHeatColors = (theme) => ({ 1: theme.colors.accentSoft, 2: '#DE9E7E', 3: theme.colors.accent });
+// Heatmap shading: soft accent for one wear, a mid tint for two, full accent
+// for three or more. Derived from the active theme, so it works on all ten.
+const getHeatColors = (theme) => ({
+  1: theme.colors.accentSoft,
+  2: mix(theme.colors.accentSoft, theme.colors.accent, 0.5),
+  3: theme.colors.accent,
+});
 const heatBucket = (count) => (count >= 3 ? 3 : count);
 
 function WornRow({ item, theme }) {
-  const styles = makeStyles(theme);
   return (
-    <View style={styles.pieceRow}>
-      <View style={styles.pieceImg}>
-        {item.imageUrl ? (
-          <Image source={{ uri: item.imageUrl }} style={{ width: '100%', height: '100%' }} />
-        ) : (
-          <Ionicons name="shirt-outline" size={20} color={theme.colors.textFaint} />
-        )}
-      </View>
+    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+      <Thumb uri={item.imageUrl} category={item.category} size={46} style={{ marginRight: 12 }} />
       <View style={{ flex: 1 }}>
-        <Text style={theme.typography.h3} numberOfLines={1}>{item.name}</Text>
-        <Text style={[theme.typography.bodyMuted, { textTransform: 'capitalize' }]}>{item.category}</Text>
+        <Text style={theme.typography.h4} numberOfLines={1}>{item.name}</Text>
+        <Text style={[theme.typography.caption, { textTransform: 'capitalize' }]}>{item.category}</Text>
       </View>
     </View>
   );
@@ -46,7 +45,7 @@ function LogEntry({ log, theme }) {
           <Ionicons name="albums-outline" size={16} color={theme.colors.accent} />
           <Text style={[theme.typography.label, { marginLeft: 6 }]}>OUTFIT · {log.outfit.name}</Text>
         </View>
-        {(log.outfit.items || []).map((it) => <WornRow key={it._id} item={it} theme={theme} />)}
+        {(log.outfit.items || []).filter(Boolean).map((it) => <WornRow key={it._id} item={it} theme={theme} />)}
       </Card>
     );
   }
@@ -67,110 +66,65 @@ function LogEntry({ log, theme }) {
 export default function CalendarScreen() {
   const theme = useTheme();
   const styles = makeStyles(theme);
-  const insets = useSafeAreaInsets();
-  const [month, setMonth] = useState(todayStr().slice(0, 7));
-  const [markedDates, setMarkedDates] = useState({});
-  const [selectedDate, setSelectedDate] = useState(todayStr());
-  const [logs, setLogs] = useState([]);
-  const [loadingCalendar, setLoadingCalendar] = useState(false);
-  const [loadingLogs, setLoadingLogs] = useState(false);
-  const HEAT_COLORS = getHeatColors(theme);
+  const today = localDateStr();
+  const [month, setMonth] = useState(today.slice(0, 7));
+  const [selectedDate, setSelectedDate] = useState(today);
+  const tz = deviceTimeZone();
+  const HEAT = getHeatColors(theme);
 
-  const loadCalendar = useCallback(async (m) => {
-    setLoadingCalendar(true);
-    try {
-      const { data } = await api.get('/stats/wear-calendar', { params: { month: m } });
-      const marks = {};
-      (data.days || []).forEach((d) => {
-        const bucket = heatBucket(d.count);
-        marks[d.date] = {
-          customStyles: {
-            container: { backgroundColor: HEAT_COLORS[bucket], borderRadius: 8 },
-            text: { color: bucket === 3 ? theme.colors.onAccent : theme.colors.text, fontWeight: '700' },
-          },
-        };
-      });
-      setMarkedDates((prev) => ({
-        ...marks,
-        [selectedDate]: {
-          ...(marks[selectedDate] || {}),
-          customStyles: {
-            container: { backgroundColor: theme.colors.accent, borderRadius: 8, borderWidth: 2, borderColor: theme.colors.text },
-            text: { color: theme.colors.onAccent, fontWeight: '700' },
-          },
-        },
-      }));
-    } catch (err) {
-      console.warn(err.message);
-    } finally {
-      setLoadingCalendar(false);
-    }
-  }, [selectedDate, theme]);
+  // Month heat data refetches only when the month changes; the day's logs only
+  // when the selected date changes. No more double requests per tap.
+  const calendar = useFocusedFetch(
+    () => api.get('/stats/wear-calendar', { params: { month, tz } }).then((r) => r.data.days || []),
+    [month]
+  );
+  const logs = useFocusedFetch(
+    () => api.get('/stats/wear-on-date', { params: { date: selectedDate, tz } }).then((r) => r.data.logs || []),
+    [selectedDate]
+  );
 
-  const loadLogsForDate = useCallback(async (date) => {
-    setLoadingLogs(true);
-    try {
-      const { data } = await api.get('/stats/wear-on-date', { params: { date } });
-      setLogs(data.logs || []);
-    } catch (err) {
-      console.warn(err.message);
-    } finally {
-      setLoadingLogs(false);
-    }
-  }, []);
-
-  useFocusEffect(useCallback(() => {
-    loadCalendar(month);
-    loadLogsForDate(selectedDate);
-  }, [month, selectedDate, loadCalendar, loadLogsForDate]));
-
-  const onDayPress = (day) => {
-    setSelectedDate(day.dateString);
-    setMarkedDates((prev) => {
-      const next = {};
-      Object.keys(prev).forEach((k) => {
-        const { customStyles, ...rest } = prev[k];
-        // Strip the previous selection border, keep the heatmap color if any.
-        next[k] = customStyles ? { customStyles: { container: { ...customStyles.container, borderWidth: 0 }, text: customStyles.text } } : rest;
-      });
-      const existing = next[day.dateString]?.customStyles;
-      next[day.dateString] = {
+  const markedDates = useMemo(() => {
+    const marks = {};
+    (calendar.data || []).forEach((d) => {
+      const bucket = heatBucket(d.count);
+      marks[d.date] = {
         customStyles: {
-          container: { backgroundColor: existing?.container?.backgroundColor || theme.colors.accent, borderRadius: 8, borderWidth: 2, borderColor: theme.colors.text },
-          text: existing?.text || { color: theme.colors.onAccent, fontWeight: '700' },
+          container: { backgroundColor: HEAT[bucket], borderRadius: 8 },
+          text: { color: bucket === 3 ? theme.colors.onAccent : theme.colors.text, fontWeight: '700' },
         },
       };
-      return next;
     });
-    loadLogsForDate(day.dateString);
-  };
+    const existing = marks[selectedDate]?.customStyles;
+    marks[selectedDate] = {
+      customStyles: {
+        container: { backgroundColor: existing?.container?.backgroundColor || theme.colors.accent, borderRadius: 8, borderWidth: 2, borderColor: theme.colors.text },
+        text: existing?.text || { color: theme.colors.onAccent, fontWeight: '700' },
+      },
+    };
+    return marks;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [calendar.data, selectedDate, theme]);
 
-  const onMonthChange = (m) => {
-    const nextMonth = `${m.year}-${String(m.month).padStart(2, '0')}`;
-    setMonth(nextMonth);
-    loadCalendar(nextMonth);
-  };
-
-  const isToday = selectedDate === todayStr();
-  const selectedLabel = new Date(`${selectedDate}T00:00:00`).toLocaleDateString(undefined, {
-    weekday: 'long', month: 'long', day: 'numeric',
-  });
+  const isToday = selectedDate === today;
+  const selectedLabel = parseLocalDate(selectedDate).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
+  const totalThisMonth = (calendar.data || []).reduce((s, d) => s + d.count, 0);
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={{ padding: 20, paddingTop: insets.top + 20, paddingBottom: 130 }}
-      refreshControl={<RefreshControl refreshing={loadingCalendar} onRefresh={() => loadCalendar(month)} tintColor={theme.colors.accent} />}
+    <Screen
+      title="Wear calendar"
+      subtitle={calendar.status === 'ready' ? `${totalThisMonth} wear${totalThisMonth === 1 ? '' : 's'} logged this month` : undefined}
+      scroll
+      refreshing={calendar.refreshing || logs.refreshing}
+      onRefresh={() => Promise.all([calendar.refresh(), logs.refresh()])}
     >
-      <Text style={[theme.typography.h1, { marginBottom: 16 }]}>Wear Calendar</Text>
-
       <Card style={{ padding: 6 }}>
         <Calendar
           current={`${month}-01`}
-          onDayPress={onDayPress}
-          onMonthChange={onMonthChange}
+          onDayPress={(day) => setSelectedDate(day.dateString)}
+          onMonthChange={(m) => setMonth(`${m.year}-${String(m.month).padStart(2, '0')}`)}
           markedDates={markedDates}
           markingType="custom"
+          displayLoadingIndicator={calendar.status === 'loading'}
           theme={{
             backgroundColor: theme.colors.surface,
             calendarBackground: theme.colors.surface,
@@ -183,6 +137,7 @@ export default function CalendarScreen() {
             dotColor: theme.colors.accent,
             selectedDotColor: theme.colors.onAccent,
             arrowColor: theme.colors.accent,
+            indicatorColor: theme.colors.accent,
             monthTextColor: theme.colors.text,
             textMonthFontWeight: '700',
             textDayFontWeight: '500',
@@ -191,38 +146,36 @@ export default function CalendarScreen() {
       </Card>
 
       <View style={styles.legendRow}>
-        <Text style={theme.typography.label}>FEWER WEARS</Text>
-        <View style={[styles.legendDot, { backgroundColor: HEAT_COLORS[1] }]} />
-        <View style={[styles.legendDot, { backgroundColor: HEAT_COLORS[2] }]} />
-        <View style={[styles.legendDot, { backgroundColor: HEAT_COLORS[3] }]} />
-        <Text style={theme.typography.label}>MORE WEARS</Text>
+        <Text style={theme.typography.small}>FEWER</Text>
+        <View style={[styles.legendDot, { backgroundColor: HEAT[1] }]} />
+        <View style={[styles.legendDot, { backgroundColor: HEAT[2] }]} />
+        <View style={[styles.legendDot, { backgroundColor: HEAT[3] }]} />
+        <Text style={theme.typography.small}>MORE WEARS</Text>
       </View>
 
-      <Text style={[theme.typography.h3, { marginTop: theme.spacing(6), marginBottom: 12 }]}>
+      {calendar.status === 'error' && <ErrorState message={calendar.error} onRetry={calendar.reload} />}
+
+      <Text style={[theme.typography.h2, { marginTop: theme.spacing(6), marginBottom: 12 }]}>
         {isToday ? 'Today' : selectedLabel}
       </Text>
 
-      {!loadingLogs && logs.length === 0 && (
+      {logs.status === 'loading' && <SkeletonList count={2} thumb={46} />}
+      {logs.status === 'error' && <ErrorState message={logs.error} onRetry={logs.reload} />}
+      {logs.status === 'ready' && logs.data.length === 0 && (
         <EmptyState
+          compact
           icon="calendar-outline"
           title="Nothing logged"
-          subtitle="No items or outfits were marked as worn on this date."
+          subtitle={isToday ? 'Log a wear from an item or outfit and it shows up here.' : 'No items or outfits were marked as worn on this date.'}
         />
       )}
-
-      {logs.map((log) => <LogEntry key={log._id} log={log} theme={theme} />)}
-    </ScrollView>
+      {logs.status === 'ready' && logs.data.map((log) => <LogEntry key={log._id} log={log} theme={theme} />)}
+    </Screen>
   );
 }
 
 const makeStyles = (theme) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.colors.bg },
   legendRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 12, gap: 6 },
-  legendDot: { width: 14, height: 14, borderRadius: 4, marginHorizontal: 2 },
+  legendDot: { width: 14, height: 14, borderRadius: 4, marginHorizontal: 2, borderWidth: 1, borderColor: theme.colors.border },
   entryHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
-  pieceRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-  pieceImg: {
-    width: 46, height: 46, borderRadius: theme.radius.sm, backgroundColor: theme.colors.surfaceAlt,
-    alignItems: 'center', justifyContent: 'center', marginRight: 12, overflow: 'hidden',
-  },
 });

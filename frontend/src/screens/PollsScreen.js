@@ -1,80 +1,78 @@
-import React, { useCallback, useState } from 'react';
-import { View, Text, FlatList, StyleSheet, TouchableOpacity } from 'react-native';
+import React from 'react';
+import { View, Text, FlatList, StyleSheet, RefreshControl } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from '@react-navigation/native';
 import api from '../api/client';
+import Screen from '../components/Screen';
+import Card from '../components/Card';
 import Button from '../components/Button';
+import PillBadge from '../components/PillBadge';
 import EmptyState from '../components/EmptyState';
+import ErrorState from '../components/ErrorState';
+import { SkeletonList } from '../components/Skeleton';
 import { useTheme } from '../context/ThemeContext';
+import useFocusedFetch from '../hooks/useFocusedFetch';
 
 export default function PollsScreen({ navigation }) {
   const theme = useTheme();
   const styles = makeStyles(theme);
-  const [polls, setPolls] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  const load = useCallback(async () => {
-    try {
-      const { data } = await api.get('/polls');
-      setPolls(data.polls || []);
-    } catch (err) {
-      console.warn(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  const { data: polls, status, error, refreshing, refresh, reload } = useFocusedFetch(
+    () => api.get('/polls').then((r) => r.data.polls || []),
+    []
+  );
 
   const totalVotes = (poll) => poll.options.reduce((sum, o) => sum + o.votes, 0);
 
+  const renderEmpty = () => {
+    if (status === 'loading') return <SkeletonList count={3} thumb={44} style={{ paddingHorizontal: 20 }} />;
+    if (status === 'error') return <ErrorState message={error} onRetry={reload} />;
+    return (
+      <EmptyState
+        icon="people-outline"
+        title="No polls yet"
+        subtitle="Pick two or more outfits and let friends vote on which you should wear."
+        action={{ label: 'Create a poll', onPress: () => navigation.navigate('CreatePoll') }}
+      />
+    );
+  };
+
   return (
-    <View style={styles.container}>
-      <View style={{ padding: 20, paddingBottom: 0 }}>
-        <Button title="New Poll" onPress={() => navigation.navigate('CreatePoll')} />
-        <Button
-          title="Enter a Poll Code to Vote"
-          variant="outline"
-          onPress={() => navigation.navigate('VotePoll')}
-          style={{ marginTop: 10 }}
-        />
+    <Screen safeTop={false} tabInset={false} padded={false}>
+      <View style={{ paddingHorizontal: 20, flexDirection: 'row', gap: 10, marginBottom: 12 }}>
+        <Button title="New poll" icon="add" onPress={() => navigation.navigate('CreatePoll')} style={{ flex: 1 }} />
+        <Button title="Enter a code" icon="keypad-outline" variant="outline" onPress={() => navigation.navigate('VotePoll')} style={{ flex: 1 }} />
       </View>
 
       <FlatList
-        data={polls}
+        data={status === 'ready' ? polls : []}
         keyExtractor={(p) => p._id}
-        contentContainerStyle={{ padding: 20, paddingTop: theme.spacing(6) }}
-        refreshing={loading}
-        onRefresh={load}
+        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 4, paddingBottom: 40, flexGrow: 1 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={theme.colors.accent} colors={[theme.colors.accent]} />}
         renderItem={({ item }) => (
-          <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('PollResults', { id: item._id })}>
-            <View style={{ flex: 1 }}>
+          <Card style={styles.card} onPress={() => navigation.navigate('PollResults', { id: item._id })} accessibilityLabel={`${item.question}, ${totalVotes(item)} votes`}>
+            <View style={styles.codeBox}>
+              <Text style={styles.codeText}>{item.code}</Text>
+            </View>
+            <View style={{ flex: 1, marginLeft: 12 }}>
               <Text style={theme.typography.h3} numberOfLines={1}>{item.question}</Text>
-              <Text style={theme.typography.bodyMuted}>
-                Code {item.code} · {item.options.length} outfits · {totalVotes(item)} votes{item.isOpen ? '' : ' · closed'}
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4, flexWrap: 'wrap' }}>
+                <Text style={theme.typography.caption}>{item.options.length} outfits · {totalVotes(item)} votes</Text>
+                <PillBadge label={item.isOpen ? 'Open' : 'Closed'} tone={item.isOpen ? 'success' : 'neutral'} />
+              </View>
             </View>
             <Ionicons name="chevron-forward" size={20} color={theme.colors.textFaint} />
-          </TouchableOpacity>
+          </Card>
         )}
-        ListEmptyComponent={
-          !loading && (
-            <EmptyState
-              icon="albums-outline"
-              title="No polls yet"
-              subtitle="Create a poll to let friends vote on which outfit you should wear."
-            />
-          )
-        }
+        ListEmptyComponent={renderEmpty()}
       />
-    </View>
+    </Screen>
   );
 }
 
 const makeStyles = (theme) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.colors.bg },
-  card: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: theme.colors.surface,
-    borderRadius: theme.radius.lg, padding: 14, marginBottom: 12, ...theme.shadow.subtle,
+  card: { flexDirection: 'row', alignItems: 'center', padding: 12, marginBottom: 12, ...theme.shadow.subtle },
+  codeBox: {
+    paddingHorizontal: 10, minHeight: 44, borderRadius: theme.radius.sm, backgroundColor: theme.colors.accentSoft,
+    borderWidth: theme.border.width - 1, borderColor: theme.colors.text, alignItems: 'center', justifyContent: 'center',
   },
+  codeText: { ...theme.typography.small, fontSize: 13, color: theme.colors.text, letterSpacing: 1.5 },
 });

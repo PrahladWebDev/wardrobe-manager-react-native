@@ -1,105 +1,131 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, Alert, ScrollView } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../api/client';
+import Screen from '../components/Screen';
 import Input from '../components/Input';
 import Button from '../components/Button';
 import Card from '../components/Card';
+import Thumb from '../components/Thumb';
+import PillBadge from '../components/PillBadge';
 import { useTheme } from '../context/ThemeContext';
+import { useToast } from '../context/ToastContext';
+import { haptic } from '../utils/haptics';
 import { getDeviceId } from '../utils/deviceId';
 
 export default function VotePollScreen() {
   const theme = useTheme();
   const styles = makeStyles(theme);
+  const toast = useToast();
   const [code, setCode] = useState('');
+  const [codeError, setCodeError] = useState('');
   const [poll, setPoll] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [voting, setVoting] = useState(false);
+  const [voting, setVoting] = useState(null);
   const [votedOptionId, setVotedOptionId] = useState(null);
 
   const lookup = async () => {
-    if (!code.trim()) return;
+    const trimmed = code.trim().toUpperCase();
+    if (trimmed.length < 4) return setCodeError('Codes are 6 characters, like F7K2QX');
+    setCodeError('');
     setLoading(true);
     try {
-      const { data } = await api.get(`/polls/code/${code.trim().toUpperCase()}`);
+      const { data } = await api.get(`/polls/code/${trimmed}`);
       setPoll(data.poll);
       setVotedOptionId(null);
+      haptic.light();
     } catch (err) {
-      Alert.alert('Poll not found', 'Double check the code and try again.');
       setPoll(null);
+      setCodeError(err.status === 404 ? 'No poll with that code. Double-check it and try again.' : err.message);
+      haptic.error();
     } finally {
       setLoading(false);
     }
   };
 
   const vote = async (optionId) => {
-    setVoting(true);
+    setVoting(optionId);
     try {
       const deviceId = await getDeviceId();
       const { data } = await api.post(`/polls/code/${poll.code}/vote`, { optionId, deviceId });
       setPoll(data.poll);
       setVotedOptionId(optionId);
+      haptic.success();
+      toast('Thanks for voting!');
     } catch (err) {
-      Alert.alert('Could not vote', err.message);
+      haptic.error();
+      toast(err.message, 'error');
     } finally {
-      setVoting(false);
+      setVoting(null);
     }
   };
 
+  const total = poll ? poll.options.reduce((s, o) => s + o.votes, 0) : 0;
+
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ padding: 20, paddingBottom: 60 }}>
+    <Screen safeTop={false} tabInset={false} scroll keyboard>
       <Text style={[theme.typography.bodyMuted, { marginBottom: 16 }]}>
-        Got a poll code from a friend? Enter it below to see the outfit options and vote.
+        Got a poll code from a friend? Enter it to see their outfit options and vote.
       </Text>
-      <Input label="Poll Code" value={code} onChangeText={(t) => setCode(t.toUpperCase())} placeholder="e.g. F7K2QX" autoCapitalize="characters" />
-      <Button title="Find Poll" onPress={lookup} loading={loading} />
+      <Input
+        label="Poll code"
+        value={code}
+        onChangeText={(t) => { setCode(t.toUpperCase()); if (codeError) setCodeError(''); }}
+        placeholder="e.g. F7K2QX"
+        autoCapitalize="characters"
+        autoCorrect={false}
+        maxLength={8}
+        leftIcon="keypad-outline"
+        error={codeError}
+        returnKeyType="search"
+        onSubmitEditing={lookup}
+        inputStyle={{ letterSpacing: 2, fontWeight: '700' }}
+      />
+      <Button title="Find poll" icon="search-outline" onPress={lookup} loading={loading} />
 
       {poll && (
         <View style={{ marginTop: theme.spacing(6) }}>
           <Text style={theme.typography.h2}>{poll.question}</Text>
-          {!poll.isOpen && <Text style={[theme.typography.bodyMuted, { marginBottom: 12 }]}>This poll is closed.</Text>}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4, marginBottom: 14 }}>
+            <PillBadge label={poll.isOpen ? 'Open' : 'Closed'} tone={poll.isOpen ? 'success' : 'neutral'} />
+            {votedOptionId ? <Text style={theme.typography.caption}>{total} vote{total === 1 ? '' : 's'} so far</Text> : null}
+          </View>
 
           {poll.options.map((opt) => {
             const cover = opt.outfit?.items?.[0]?.imageUrl;
             const isVoted = votedOptionId === opt._id;
+            const disabled = !poll.isOpen || !!voting || !!votedOptionId;
             return (
-              <TouchableOpacity
+              <Card
                 key={opt._id}
-                activeOpacity={0.85}
-                disabled={!poll.isOpen || voting || !!votedOptionId}
-                onPress={() => vote(opt._id)}
+                style={[styles.optionCard, isVoted && styles.optionVoted, disabled && !isVoted && { opacity: 0.7 }]}
+                onPress={disabled ? undefined : () => vote(opt._id)}
+                accessibilityLabel={`Vote for ${opt.label}`}
               >
-                <Card style={[styles.optionCard, isVoted && styles.optionVoted]}>
-                  <View style={styles.thumb}>
-                    {cover ? <Image source={{ uri: cover }} style={{ width: '100%', height: '100%' }} /> : (
-                      <Ionicons name="albums-outline" size={22} color={theme.colors.textFaint} />
-                    )}
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={theme.typography.h3}>{opt.label}</Text>
-                    {votedOptionId && <Text style={theme.typography.bodyMuted}>{opt.votes} votes</Text>}
-                  </View>
-                  {isVoted && <Ionicons name="checkmark-circle" size={22} color={theme.colors.success} />}
-                </Card>
-              </TouchableOpacity>
+                <Thumb uri={cover} category="top" size={56} />
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <Text style={theme.typography.h3}>{opt.label}</Text>
+                  {votedOptionId ? <Text style={theme.typography.caption}>{opt.votes} vote{opt.votes === 1 ? '' : 's'}</Text> : (
+                    <Text style={theme.typography.caption}>{poll.isOpen ? 'Tap to vote' : 'Voting closed'}</Text>
+                  )}
+                </View>
+                {isVoted ? (
+                  <Ionicons name="checkmark-circle" size={24} color={theme.colors.success} />
+                ) : voting === opt._id ? (
+                  <Ionicons name="ellipsis-horizontal" size={22} color={theme.colors.textFaint} />
+                ) : (
+                  <Ionicons name="chevron-forward" size={18} color={theme.colors.textFaint} />
+                )}
+              </Card>
             );
           })}
-
-          {votedOptionId && (
-            <Text style={[theme.typography.bodyMuted, { marginTop: 8 }]}>Thanks for voting! 🎉</Text>
-          )}
         </View>
       )}
-    </ScrollView>
+    </Screen>
   );
 }
 
 const makeStyles = (theme) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.colors.bg },
-  optionCard: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
-  optionVoted: { borderWidth: 2, borderColor: theme.colors.success },
-  thumb: {
-    width: 56, height: 56, borderRadius: theme.radius.sm, backgroundColor: theme.colors.surfaceAlt,
-    alignItems: 'center', justifyContent: 'center', marginRight: 12, overflow: 'hidden',
-  },
+  optionCard: { flexDirection: 'row', alignItems: 'center', marginBottom: 12, padding: 12 },
+  optionVoted: { borderColor: theme.colors.success, backgroundColor: theme.colors.successSoft },
 });

@@ -1,62 +1,58 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, Modal, StyleSheet, Pressable } from 'react-native';
+import { TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import ActionSheet from './ActionSheet';
 import { useTheme } from '../context/ThemeContext';
+import { haptic } from '../utils/haptics';
 
+// Quick-add button floating above the tab bar. Every create flow in the app
+// is one tap away from here, which also gives Polls and Packing a permanent
+// entry point instead of burying them in header icons and the Profile menu.
 const ACTIONS = [
-  { key: 'addItem', label: 'Add Clothing Item', icon: 'shirt-outline', go: { tab: 'WardrobeTab', screen: 'AddItem' } },
-  { key: 'createOutfit', label: 'Create Outfit', icon: 'albums-outline', go: { tab: 'OutfitsTab', screen: 'CreateOutfit' } },
-  { key: 'surprise', label: 'Surprise Me', icon: 'dice-outline', go: { tab: 'OutfitsTab', screen: 'SurpriseOutfit' } },
-  { key: 'today', label: "Today's Suggestion", icon: 'sunny-outline', go: { tab: 'Today' } },
-  { key: 'repairs', label: 'Repair Tracker', icon: 'build-outline', go: { tab: 'WardrobeTab', screen: 'RepairTracker' } },
-  { key: 'wishlist', label: 'Add to Wishlist', icon: 'bag-handle-outline', go: { tab: 'WardrobeTab', screen: 'WishlistForm' } },
+  { key: 'addItem', label: 'Add clothing item', icon: 'shirt-outline', go: { tab: 'WardrobeTab', screen: 'AddItem' } },
+  { key: 'createOutfit', label: 'Create outfit', icon: 'albums-outline', go: { tab: 'OutfitsTab', screen: 'CreateOutfit' } },
+  { key: 'surprise', label: 'Surprise me', icon: 'dice-outline', subtitle: 'Shuffle a fresh outfit', go: { tab: 'OutfitsTab', screen: 'SurpriseOutfit' } },
+  { key: 'poll', label: 'Start an outfit poll', icon: 'people-outline', subtitle: 'Let friends vote', go: { tab: 'OutfitsTab', screen: 'CreatePoll' } },
+  { key: 'wishlist', label: 'Add to wishlist', icon: 'bag-handle-outline', go: { tab: 'WardrobeTab', screen: 'WishlistForm' } },
+  { key: 'packing', label: 'Plan a packing list', icon: 'briefcase-outline', go: { root: 'PackingList' } },
 ];
 
-// Sits above the tab bar on every main-tab screen. Tapping opens a lightweight
-// sheet of quick actions rather than assuming a single "add" target, since
-// this app has several distinct create flows (item / outfit / shuffle).
-export default function Fab({ navigation }) {
+export default function Fab({ visible = true }) {
   const theme = useTheme();
   const styles = makeStyles(theme);
   const insets = useSafeAreaInsets();
+  const navigation = useNavigation();
   const [open, setOpen] = useState(false);
 
+  if (!visible) return null;
+
   const go = (action) => {
-    setOpen(false);
-    const { tab, screen } = action.go;
-    if (screen) {
-      navigation.navigate('Main', { screen: tab, params: { screen } });
-    } else {
-      navigation.navigate('Main', { screen: tab });
-    }
+    const { tab, screen, root } = action.go;
+    if (root) navigation.navigate(root);
+    else if (screen) navigation.navigate('Main', { screen: tab, params: { screen } });
+    else navigation.navigate('Main', { screen: tab });
   };
 
   return (
     <>
       <TouchableOpacity
         activeOpacity={0.85}
-        onPress={() => setOpen(true)}
-        style={[styles.fab, { bottom: 74 + insets.bottom }]}
+        onPress={() => { haptic.light(); setOpen(true); }}
+        accessibilityRole="button"
+        accessibilityLabel="Quick add"
+        style={[styles.fab, { bottom: theme.layout.tabBarHeight + 22 + insets.bottom }]}
       >
         <Ionicons name="add" size={28} color={theme.colors.onAccent} />
       </TouchableOpacity>
 
-      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
-        <Pressable style={styles.backdrop} onPress={() => setOpen(false)}>
-          <View style={[styles.sheet, { marginBottom: insets.bottom + 24 }]}>
-            <Text style={[theme.typography.h2, { marginBottom: 14 }]}>Quick Add</Text>
-            {ACTIONS.map((a) => (
-              <TouchableOpacity key={a.key} style={styles.row} onPress={() => go(a)} activeOpacity={0.7}>
-                <View style={styles.rowIcon}>
-                  <Ionicons name={a.icon} size={18} color={theme.colors.accent} />
-                </View>
-                <Text style={theme.typography.body}>{a.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </Pressable>
-      </Modal>
+      <ActionSheet
+        visible={open}
+        title="Quick add"
+        onClose={() => setOpen(false)}
+        actions={ACTIONS.map((a) => ({ label: a.label, icon: a.icon, subtitle: a.subtitle, onPress: () => go(a) }))}
+      />
     </>
   );
 }
@@ -65,8 +61,8 @@ const makeStyles = (theme) => StyleSheet.create({
   fab: {
     position: 'absolute',
     right: 20,
-    width: 58,
-    height: 58,
+    width: 56,
+    height: 56,
     borderRadius: theme.radius.pill,
     backgroundColor: theme.colors.accent,
     borderWidth: theme.border.width,
@@ -74,32 +70,5 @@ const makeStyles = (theme) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     ...theme.shadow.card,
-  },
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.35)',
-    justifyContent: 'flex-end',
-  },
-  sheet: {
-    backgroundColor: theme.colors.surface,
-    marginHorizontal: 16,
-    borderRadius: theme.radius.lg,
-    borderWidth: theme.border.width,
-    borderColor: theme.colors.text,
-    padding: 20,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-  },
-  rowIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: theme.radius.sm,
-    backgroundColor: theme.colors.accentSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
   },
 });
