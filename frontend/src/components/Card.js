@@ -1,10 +1,26 @@
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, TouchableOpacity, StyleSheet } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 
-export default function Card({ children, style }) {
+// Surface with the app's outline. Pass `onPress` to make the whole card a
+// button with a proper pressed state and accessibility role.
+export default function Card({ children, style, onPress, onLongPress, accessibilityLabel }) {
   const theme = useTheme();
   const styles = makeStyles(theme);
+  if (onPress || onLongPress) {
+    return (
+      <TouchableOpacity
+        onPress={onPress}
+        onLongPress={onLongPress}
+        activeOpacity={0.8}
+        accessibilityRole="button"
+        accessibilityLabel={accessibilityLabel}
+        style={[styles.card, style]}
+      >
+        {children}
+      </TouchableOpacity>
+    );
+  }
   return <View style={[styles.card, style]}>{children}</View>;
 }
 

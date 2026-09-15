@@ -1,135 +1,110 @@
-import React, { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, RefreshControl } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from '@react-navigation/native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet } from 'react-native';
 import api from '../api/client';
+import Screen from '../components/Screen';
 import Card from '../components/Card';
+import Thumb from '../components/Thumb';
+import Button from '../components/Button';
 import PillBadge from '../components/PillBadge';
 import EmptyState from '../components/EmptyState';
+import ErrorState from '../components/ErrorState';
+import { SkeletonList } from '../components/Skeleton';
 import { useTheme } from '../context/ThemeContext';
+import { useToast } from '../context/ToastContext';
+import useFocusedFetch from '../hooks/useFocusedFetch';
+import { haptic } from '../utils/haptics';
 
 const STATUS_META = {
-  needs_repair: { label: 'Needs Repair', tone: 'danger' },
-  in_progress: { label: 'In Progress', tone: 'info' },
+  needs_repair: { label: 'Needs repair', tone: 'danger' },
+  in_progress: { label: 'In progress', tone: 'info' },
   repaired: { label: 'Repaired', tone: 'success' },
 };
 
-function RepairRow({ item, navigation, theme, onAdvance }) {
-  const styles = makeStyles(theme);
+function RepairRow({ item, navigation, theme, onAdvance, advancing }) {
   const meta = STATUS_META[item.repair?.status] || STATUS_META.needs_repair;
-  const nextAction = item.repair?.status === 'needs_repair' ? 'Start Repair' : item.repair?.status === 'in_progress' ? 'Mark Repaired' : null;
+  const nextAction = item.repair?.status === 'needs_repair' ? 'Start repair' : item.repair?.status === 'in_progress' ? 'Mark repaired' : null;
 
   return (
-    <TouchableOpacity style={styles.row} onPress={() => navigation.navigate('ItemDetail', { id: item._id })} activeOpacity={0.8}>
-      <View style={styles.thumb}>
-        {item.imageUrl ? (
-          <Image source={{ uri: item.imageUrl }} style={{ width: '100%', height: '100%' }} />
-        ) : (
-          <Ionicons name="shirt-outline" size={22} color={theme.colors.textFaint} />
-        )}
-      </View>
-      <View style={{ flex: 1, marginLeft: 12 }}>
-        <Text style={theme.typography.h3} numberOfLines={1}>{item.name}</Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4, gap: 8 }}>
-          <PillBadge label={meta.label} tone={meta.tone} />
-          {item.repair?.cost > 0 && <Text style={theme.typography.bodyMuted}>₹{item.repair.cost}</Text>}
+    <Card style={{ padding: 12, marginBottom: 12 }} onPress={() => navigation.navigate('ItemDetail', { id: item._id })} accessibilityLabel={`${item.name}, ${meta.label}`}>
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <Thumb uri={item.imageUrl} category={item.category} size={52} />
+        <View style={{ flex: 1, marginLeft: 12 }}>
+          <Text style={theme.typography.h3} numberOfLines={1}>{item.name}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4, gap: 8 }}>
+            <PillBadge label={meta.label} tone={meta.tone} />
+            {item.repair?.cost > 0 && <Text style={theme.typography.caption}>₹{item.repair.cost}</Text>}
+          </View>
+          {item.repair?.notes ? (
+            <Text style={[theme.typography.caption, { marginTop: 4 }]} numberOfLines={1}>{item.repair.notes}</Text>
+          ) : null}
         </View>
-        {item.repair?.notes ? (
-          <Text style={[theme.typography.bodyMuted, { marginTop: 4 }]} numberOfLines={1}>{item.repair.notes}</Text>
-        ) : null}
       </View>
       {nextAction && (
-        <TouchableOpacity
-          onPress={(e) => { e.stopPropagation?.(); onAdvance(item); }}
-          style={styles.advanceBtn}
-        >
-          <Text style={styles.advanceText}>{nextAction}</Text>
-        </TouchableOpacity>
+        <Button title={nextAction} size="sm" variant="ghost" icon="arrow-forward-outline" onPress={() => onAdvance(item)} loading={advancing === item._id} style={{ marginTop: 10, alignSelf: 'flex-start' }} />
       )}
-    </TouchableOpacity>
+    </Card>
   );
 }
 
 export default function RepairTrackerScreen({ navigation }) {
   const theme = useTheme();
-  const styles = makeStyles(theme);
-  const [active, setActive] = useState([]);
-  const [resolved, setResolved] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const toast = useToast();
+  const [advancing, setAdvancing] = useState(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const { data } = await api.get('/items/repairs');
-      setActive(data.active || []);
-      setResolved(data.resolved || []);
-    } catch (err) {
-      console.warn(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  const { data, status, error, refreshing, refresh, reload } = useFocusedFetch(
+    () => api.get('/items/repairs').then((r) => ({ active: r.data.active || [], resolved: r.data.resolved || [] })),
+    []
+  );
 
   const advance = async (item) => {
     const nextStatus = item.repair?.status === 'needs_repair' ? 'in_progress' : 'repaired';
+    setAdvancing(item._id);
     try {
       await api.put(`/items/${item._id}/repair`, { status: nextStatus });
-      load();
+      haptic.success();
+      toast(nextStatus === 'repaired' ? `${item.name} is back in rotation` : `Started repairing ${item.name}`);
+      await refresh();
     } catch (err) {
-      console.warn(err.message);
+      haptic.error();
+      toast(err.message, 'error');
+    } finally {
+      setAdvancing(null);
     }
   };
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={{ padding: 20, paddingBottom: 60 }}
-      refreshControl={<RefreshControl refreshing={loading} onRefresh={load} tintColor={theme.colors.accent} />}
-    >
-      <Text style={[theme.typography.h1, { marginBottom: 4 }]}>🔧 Repair Tracker</Text>
+    <Screen safeTop={false} tabInset={false} scroll refreshing={refreshing} onRefresh={refresh}>
       <Text style={[theme.typography.bodyMuted, { marginBottom: 16 }]}>
-        Damaged pieces are automatically kept out of Today's suggestions and Surprise Me until they're fixed.
+        Damaged pieces stay out of Today's suggestions and Surprise Me until they're fixed.
       </Text>
 
-      {active.length === 0 ? (
-        <Card>
-          <EmptyState icon="build-outline" title="Nothing in repair" subtitle="Flag a damaged item from its detail page to track it here" />
-        </Card>
-      ) : (
-        active.map((item) => (
-          <Card key={item._id} style={{ marginBottom: 12, padding: 0 }}>
-            <RepairRow item={item} navigation={navigation} theme={theme} onAdvance={advance} />
-          </Card>
-        ))
-      )}
+      {status === 'loading' && <SkeletonList count={3} thumb={52} />}
+      {status === 'error' && <ErrorState message={error} onRetry={reload} />}
 
-      {resolved.length > 0 && (
+      {status === 'ready' && (
         <>
-          <Text style={[theme.typography.h2, { marginTop: 24, marginBottom: 12 }]}>Recently Fixed</Text>
-          {resolved.map((item) => (
-            <Card key={item._id} style={{ marginBottom: 12, padding: 0 }}>
-              <RepairRow item={item} navigation={navigation} theme={theme} onAdvance={advance} />
+          {data.active.length === 0 ? (
+            <Card>
+              <EmptyState compact icon="build-outline" title="Nothing in repair" subtitle="Flag a damaged item from its detail page to track it here." />
             </Card>
-          ))}
+          ) : (
+            data.active.map((item) => (
+              <RepairRow key={item._id} item={item} navigation={navigation} theme={theme} onAdvance={advance} advancing={advancing} />
+            ))
+          )}
+
+          {data.resolved.length > 0 && (
+            <>
+              <Text style={[theme.typography.h2, { marginTop: 24, marginBottom: 12 }]}>Recently fixed</Text>
+              {data.resolved.map((item) => (
+                <RepairRow key={item._id} item={item} navigation={navigation} theme={theme} onAdvance={advance} advancing={advancing} />
+              ))}
+            </>
+          )}
         </>
       )}
-    </ScrollView>
+    </Screen>
   );
 }
 
-const makeStyles = (theme) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.colors.bg },
-  row: { flexDirection: 'row', alignItems: 'center', padding: 14 },
-  thumb: {
-    width: 50, height: 50, borderRadius: theme.radius.sm, backgroundColor: theme.colors.surfaceAlt,
-    alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
-  },
-  advanceBtn: {
-    borderWidth: theme.border.width - 1, borderColor: theme.colors.text,
-    borderRadius: theme.radius.pill, paddingHorizontal: 10, paddingVertical: 6,
-    backgroundColor: theme.colors.accentSoft,
-  },
-  advanceText: { fontSize: 11, fontWeight: '700', color: theme.colors.text },
-});
+const styles = StyleSheet.create({});

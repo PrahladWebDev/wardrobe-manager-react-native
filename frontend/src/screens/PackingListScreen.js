@@ -1,36 +1,35 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, Alert, TouchableOpacity, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import api from '../api/client';
-import Input from '../components/Input';
+import Screen from '../components/Screen';
 import Button from '../components/Button';
 import Chip from '../components/Chip';
 import Card from '../components/Card';
+import Field from '../components/Field';
+import Thumb from '../components/Thumb';
+import DateField from '../components/DateField';
+import WeatherPill from '../components/WeatherPill';
+import EmptyState from '../components/EmptyState';
+import { Skeleton } from '../components/Skeleton';
 import { useTheme } from '../context/ThemeContext';
+import { useToast } from '../context/ToastContext';
+import { haptic } from '../utils/haptics';
+import { localDateStr, addDays, isISODate, parseLocalDate } from '../utils/dates';
 import { scheduleTripReminder } from '../utils/notifications';
-
-const OCCASIONS = ['casual', 'work', 'formal', 'travel', 'party'];
-
-function toISODate(d) {
-  return d.toISOString().slice(0, 10);
-}
+import { DRESS_CODES } from '../constants/dressCodes';
 
 function Section({ title, items, theme }) {
-  const styles = makeStyles(theme);
   if (!items || items.length === 0) return null;
   return (
     <View style={{ marginBottom: 16 }}>
-      <Text style={[theme.typography.label, { textTransform: 'uppercase', marginBottom: 8 }]}>{title} ({items.length})</Text>
+      <Text style={[theme.typography.label, { textTransform: 'uppercase', marginBottom: 8 }]}>{title} · {items.length}</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
         {items.map((it) => (
-          <View key={it._id} style={styles.piece}>
-            <View style={styles.pieceImg}>
-              {it.imageUrl ? <Image source={{ uri: it.imageUrl }} style={{ width: '100%', height: '100%' }} /> : (
-                <Ionicons name="shirt-outline" size={20} color={theme.colors.textFaint} />
-              )}
-            </View>
-            <Text style={styles.pieceName} numberOfLines={1}>{it.name}</Text>
+          <View key={it._id} style={{ width: 84, marginRight: 10 }}>
+            <Thumb uri={it.imageUrl} category={it.category} size={84} radius={theme.radius.md} style={{ marginBottom: 4 }} />
+            <Text style={theme.typography.small} numberOfLines={1}>{it.name}</Text>
           </View>
         ))}
       </ScrollView>
@@ -41,11 +40,12 @@ function Section({ title, items, theme }) {
 export default function PackingListScreen() {
   const theme = useTheme();
   const styles = makeStyles(theme);
+  const toast = useToast();
   const today = new Date();
-  const nextWeek = new Date(today.getTime() + 6 * 24 * 60 * 60 * 1000);
 
-  const [startDate, setStartDate] = useState(toISODate(today));
-  const [endDate, setEndDate] = useState(toISODate(nextWeek));
+  const [startDate, setStartDate] = useState(localDateStr(today));
+  const [endDate, setEndDate] = useState(localDateStr(addDays(today, 6)));
+  const [dateError, setDateError] = useState('');
   const [occasion, setOccasion] = useState('travel');
   const [remindMe, setRemindMe] = useState(true);
   const [result, setResult] = useState(null);
@@ -60,11 +60,11 @@ export default function PackingListScreen() {
         const { data } = await api.get('/suggestion/packing/latest');
         if (data) {
           setResult(data);
-          setStartDate(data.startDate);
-          setEndDate(data.endDate);
+          if (isISODate(data.startDate)) setStartDate(data.startDate);
+          if (isISODate(data.endDate)) setEndDate(data.endDate);
           if (data.occasion) setOccasion(data.occasion);
         }
-      } catch (err) {
+      } catch (_) {
         // No saved list yet, or failed to load — fine, just start fresh.
       } finally {
         setRestoring(false);
@@ -72,67 +72,82 @@ export default function PackingListScreen() {
     })();
   }, []);
 
-  const hasAnyItems = result && Object.values(result.packingList).some((arr) => arr && arr.length > 0);
+  const hasAnyItems = result && Object.values(result.packingList || {}).some((arr) => arr && arr.length > 0);
+  const tripDays = isISODate(startDate) && isISODate(endDate)
+    ? Math.max(1, Math.round((parseLocalDate(endDate) - parseLocalDate(startDate)) / 86400000) + 1)
+    : null;
 
   const generate = async () => {
+    if (!isISODate(startDate) || !isISODate(endDate)) return setDateError('Pick both dates.');
+    if (endDate < startDate) return setDateError('The end date is before the start date.');
+    setDateError('');
     setLoading(true);
     try {
-      let lat, lon;
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status === 'granted') {
-        const loc = await Location.getCurrentPositionAsync({});
-        lat = loc.coords.latitude;
-        lon = loc.coords.longitude;
-      }
+      let lat; let lon;
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === 'granted') {
+          const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Low });
+          lat = loc.coords.latitude;
+          lon = loc.coords.longitude;
+        }
+      } catch (_) {}
       const { data } = await api.post('/suggestion/packing', { startDate, endDate, occasion, lat, lon });
       setResult(data);
+      haptic.success();
+      toast(`Packed for ${data.days} day${data.days === 1 ? '' : 's'}`);
 
       if (remindMe) {
         const scheduled = await scheduleTripReminder(startDate, occasion);
-        if (!scheduled) {
-          Alert.alert('Heads up', 'Could not schedule a reminder (permission denied, or the trip already starts too soon).');
-        }
+        if (!scheduled) toast('Reminder not set: notifications are off or the trip starts too soon', 'info');
       }
     } catch (err) {
-      Alert.alert('Could not generate packing list', err.message);
+      haptic.error();
+      toast(err.message, 'error');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ padding: 20, paddingBottom: 60 }}>
+    <Screen safeTop={false} tabInset={false} scroll keyboard>
       <Text style={[theme.typography.bodyMuted, { marginBottom: 16 }]}>
-        Tell us your trip dates and we'll pack for you based on the weather and what's clean in your closet.
+        Pick your trip dates and Foldd packs from what's clean in your closet, based on the forecast.
       </Text>
 
-      <Input label="Start date (YYYY-MM-DD)" value={startDate} onChangeText={setStartDate} placeholder="2026-07-10" />
-      <Input label="End date (YYYY-MM-DD)" value={endDate} onChangeText={setEndDate} placeholder="2026-07-16" />
-
-      <Text style={[theme.typography.label, { textTransform: 'uppercase', marginBottom: 8 }]}>Occasion</Text>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 16 }}>
-        {OCCASIONS.map((o) => (
-          <Chip key={o} label={o} active={occasion === o} onPress={() => setOccasion(o)} style={{ marginBottom: 8 }} />
-        ))}
+      <View style={{ flexDirection: 'row', gap: 10 }}>
+        <DateField label="Start" value={startDate} onChange={(d) => { setStartDate(d); if (endDate < d) setEndDate(d); setDateError(''); }} style={{ flex: 1 }} />
+        <DateField label="End" value={endDate} onChange={(d) => { setEndDate(d); setDateError(''); }} minimumDate={parseLocalDate(startDate)} style={{ flex: 1 }} />
       </View>
+      {dateError ? <Text style={[theme.typography.caption, { color: theme.colors.danger, marginTop: -8, marginBottom: 10 }]}>{dateError}</Text> : null}
+      {tripDays && !dateError ? <Text style={[theme.typography.caption, { marginTop: -6, marginBottom: 10 }]}>{tripDays}-day trip</Text> : null}
 
-      <TouchableOpacity style={styles.remindRow} onPress={() => setRemindMe((v) => !v)} activeOpacity={0.8}>
-        <Ionicons name={remindMe ? 'checkbox' : 'square-outline'} size={20} color={remindMe ? theme.colors.accent : theme.colors.textFaint} />
+      <Field label="Occasion">
+        {DRESS_CODES.map((d) => (
+          <Chip key={d.key} label={d.label} small icon={d.icon} active={occasion === d.key} onPress={() => setOccasion(d.key)} style={{ marginBottom: 8 }} />
+        ))}
+      </Field>
+
+      <TouchableOpacity
+        style={styles.remindRow}
+        onPress={() => setRemindMe((v) => !v)}
+        activeOpacity={0.8}
+        accessibilityRole="checkbox"
+        accessibilityState={{ checked: remindMe }}
+        accessibilityLabel="Remind me the evening before to pack"
+      >
+        <Ionicons name={remindMe ? 'checkbox' : 'square-outline'} size={22} color={remindMe ? theme.colors.accent : theme.colors.textFaint} />
         <Text style={[theme.typography.bodyMuted, { marginLeft: 8 }]}>Remind me the evening before to pack</Text>
       </TouchableOpacity>
 
-      <Button title="Generate Packing List" onPress={generate} loading={loading} />
+      <Button title="Generate packing list" icon="briefcase-outline" onPress={generate} loading={loading} />
 
-      {restoring && (
-        <Text style={[theme.typography.bodyMuted, { marginTop: 16, textAlign: 'center' }]}>Loading your last packing list…</Text>
-      )}
+      {restoring && <Skeleton height={180} radius={theme.radius.lg} style={{ marginTop: 20 }} />}
 
       {!restoring && result && (
         <Card style={{ marginTop: 20 }}>
-          <Text style={[theme.typography.h3, { marginBottom: 4 }]}>{result.days}-day trip</Text>
-          <Text style={[theme.typography.bodyMuted, { marginBottom: 16 }]}>
-            Expect ~{Math.round(result.weather.tempC)}°C, {result.weather.condition} · packing for {result.targetSeason}
-          </Text>
+          <Text style={[theme.typography.h2, { marginBottom: 8 }]}>{result.days}-day trip</Text>
+          <WeatherPill weather={result.weather} targetSeason={result.targetSeason} style={{ marginBottom: 16 }} />
 
           {hasAnyItems ? (
             <>
@@ -143,24 +158,19 @@ export default function PackingListScreen() {
               <Section title="Accessories" items={result.packingList.accessories} theme={theme} />
             </>
           ) : (
-            <Text style={theme.typography.bodyMuted}>
-              No matching clothes found for this trip. This usually means your closet items aren't tagged for "{result.occasion || occasion}"
-              or the current season, or they're marked as in laundry. Try adding occasion tags to a few items, or check they aren't in your laundry list.
-            </Text>
+            <EmptyState
+              compact
+              icon="shirt-outline"
+              title="Nothing matched this trip"
+              subtitle={`Your items may not be tagged "${result.occasion || occasion}", may not suit this season, or are in the laundry.`}
+            />
           )}
         </Card>
       )}
-    </ScrollView>
+    </Screen>
   );
 }
 
-const makeStyles = (theme) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.colors.bg },
-  remindRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
-  piece: { width: 80, marginRight: 10 },
-  pieceImg: {
-    width: 70, height: 70, borderRadius: theme.radius.sm, backgroundColor: theme.colors.surfaceAlt,
-    alignItems: 'center', justifyContent: 'center', marginBottom: 4, overflow: 'hidden',
-  },
-  pieceName: { fontSize: 11, color: theme.colors.textMuted },
+const makeStyles = () => StyleSheet.create({
+  remindRow: { flexDirection: 'row', alignItems: 'center', minHeight: 44, marginBottom: 12 },
 });

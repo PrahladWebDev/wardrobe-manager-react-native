@@ -1,12 +1,14 @@
 import React from 'react';
-import { TouchableOpacity, View, ActivityIndicator } from 'react-native';
-import { NavigationContainer, DefaultTheme, DarkTheme, getFocusedRouteNameFromRoute } from '@react-navigation/native';
+import { View, ActivityIndicator } from 'react-native';
+import { NavigationContainer, DefaultTheme, DarkTheme, getFocusedRouteNameFromRoute, useNavigationState } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import Fab from '../components/Fab';
+import { haptic } from '../utils/haptics';
 
 import LoginScreen from '../screens/LoginScreen';
 import RegisterScreen from '../screens/RegisterScreen';
@@ -38,27 +40,26 @@ const Tabs = createBottomTabNavigator();
 const WardrobeStack = createNativeStackNavigator();
 const OutfitsStack = createNativeStackNavigator();
 
+// Shared native-header look for pushed screens. Tab roots hide the native
+// header and draw their own via <Screen title=...> so every tab reads the same.
+function useStackScreenOptions() {
+  const theme = useTheme();
+  return {
+    headerShadowVisible: false,
+    headerStyle: { backgroundColor: theme.colors.bg },
+    headerTintColor: theme.colors.text,
+    headerTitleStyle: { fontWeight: '700', color: theme.colors.text },
+    headerBackTitleVisible: false,
+    contentStyle: { backgroundColor: theme.colors.bg },
+  };
+}
+
 function WardrobeStackNav() {
   const theme = useTheme();
+  const screenOptions = useStackScreenOptions();
   return (
-    <WardrobeStack.Navigator screenOptions={{ headerShadowVisible: false, headerStyle: { backgroundColor: theme.colors.bg }, headerTintColor: theme.colors.text }}>
-      <WardrobeStack.Screen
-        name="Wardrobe"
-        component={WardrobeScreen}
-        options={({ navigation }) => ({
-          title: 'My Wardrobe',
-          headerRight: () => (
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 8 }}>
-              <TouchableOpacity onPress={() => navigation.navigate('Wishlist')} style={{ paddingHorizontal: 4 }}>
-                <Ionicons name="bag-handle-outline" size={22} color={theme.colors.accent} />
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => navigation.navigate('RepairTracker')} style={{ paddingHorizontal: 4 }}>
-                <Ionicons name="build-outline" size={22} color={theme.colors.accent} />
-              </TouchableOpacity>
-            </View>
-          ),
-        })}
-      />
+    <WardrobeStack.Navigator screenOptions={screenOptions}>
+      <WardrobeStack.Screen name="Wardrobe" component={WardrobeScreen} options={{ headerShown: false }} />
       <WardrobeStack.Screen name="RepairTracker" component={RepairTrackerScreen} options={{ title: 'Repair Tracker' }} />
       <WardrobeStack.Screen name="Wishlist" component={WishlistScreen} options={{ title: 'Wishlist' }} />
       <WardrobeStack.Screen
@@ -75,28 +76,17 @@ function WardrobeStackNav() {
       <WardrobeStack.Screen
         name="BarcodeScan"
         component={BarcodeScanScreen}
-        options={{ title: 'Scan Barcode', presentation: 'modal', headerStyle: { backgroundColor: theme.colors.black }, headerTintColor: '#fff' }}
+        options={{ title: 'Scan Barcode', presentation: 'modal', headerStyle: { backgroundColor: theme.colors.black }, headerTintColor: '#FFFFFF' }}
       />
     </WardrobeStack.Navigator>
   );
 }
 
 function OutfitsStackNav() {
-  const theme = useTheme();
+  const screenOptions = useStackScreenOptions();
   return (
-    <OutfitsStack.Navigator screenOptions={{ headerShadowVisible: false, headerStyle: { backgroundColor: theme.colors.bg }, headerTintColor: theme.colors.text }}>
-      <OutfitsStack.Screen
-        name="Outfits"
-        component={OutfitsScreen}
-        options={({ navigation }) => ({
-          title: 'Outfits',
-          headerRight: () => (
-            <TouchableOpacity onPress={() => navigation.navigate('SurpriseOutfit')} style={{ paddingHorizontal: 4, marginRight: 8 }}>
-              <Ionicons name="shuffle" size={22} color={theme.colors.accent} />
-            </TouchableOpacity>
-          ),
-        })}
-      />
+    <OutfitsStack.Navigator screenOptions={screenOptions}>
+      <OutfitsStack.Screen name="Outfits" component={OutfitsScreen} options={{ headerShown: false }} />
       <OutfitsStack.Screen
         name="CreateOutfit"
         component={CreateOutfitScreen}
@@ -112,18 +102,43 @@ function OutfitsStackNav() {
   );
 }
 
-// Tabs that contain a nested stack have a "root" screen — the tab bar
-// should only show while that root screen is focused, and hide for any
-// screen pushed on top of it (AddItem, ItemDetail, CreateOutfit, etc.),
-// since those are full-screen forms with their own bottom action button.
+// Tabs that contain a nested stack have a "root" screen — the tab bar (and
+// the quick-add button) should only show while that root screen is focused,
+// and hide for any screen pushed on top of it (AddItem, ItemDetail, etc.).
 const TAB_ROOT_SCREEN = {
   WardrobeTab: 'Wardrobe',
   OutfitsTab: 'Outfits',
 };
 
+const TAB_ICONS = {
+  WardrobeTab: ['shirt-outline', 'shirt'],
+  Today: ['sunny-outline', 'sunny'],
+  OutfitsTab: ['albums-outline', 'albums'],
+  Calendar: ['calendar-outline', 'calendar'],
+  Stats: ['stats-chart-outline', 'stats-chart'],
+  Profile: ['person-outline', 'person'],
+};
+
+// True while a tab's root screen is on top (nothing pushed, no root modal).
+function useIsTabRootFocused() {
+  return useNavigationState((state) => {
+    if (!state) return true;
+    if ((state.index ?? 0) !== 0) return false; // PackingList / Settings modal on top
+    const tabs = state.routes[0]?.state;
+    if (!tabs) return true;
+    const active = tabs.routes[tabs.index ?? 0];
+    const nested = active?.state;
+    if (!nested) return true;
+    const focused = nested.routes[nested.index ?? 0]?.name;
+    const root = TAB_ROOT_SCREEN[active.name];
+    return !root || focused === root;
+  });
+}
+
 function MainTabs() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const showFab = useIsTabRootFocused();
 
   return (
     <View style={{ flex: 1 }}>
@@ -137,59 +152,55 @@ function MainTabs() {
             tabBarActiveTintColor: theme.colors.text,
             tabBarInactiveTintColor: theme.colors.textFaint,
             tabBarActiveBackgroundColor: theme.colors.accentSoft,
-            tabBarShowLabel: false,
+            tabBarShowLabel: true,
+            tabBarLabelStyle: { fontSize: 10, fontWeight: '700', marginBottom: 2 },
             tabBarStyle: {
               display: hideChrome ? 'none' : 'flex',
               position: 'absolute',
               left: 16,
               right: 16,
               bottom: 12 + insets.bottom,
-              height: 62,
+              height: theme.layout.tabBarHeight,
               borderRadius: theme.radius.pill,
               backgroundColor: theme.colors.surface,
               borderWidth: theme.border.width,
               borderColor: theme.colors.text,
+              borderTopWidth: theme.border.width,
+              borderTopColor: theme.colors.text,
               paddingTop: 0,
-              paddingHorizontal: 0,
+              paddingHorizontal: 4,
               ...theme.shadow.card,
             },
             tabBarItemStyle: {
               borderRadius: theme.radius.pill,
-              flex: 1,
               marginHorizontal: 2,
               marginVertical: 6,
-              height: 44,
-              alignItems: 'center',
-              justifyContent: 'center',
+              paddingVertical: 2,
             },
-            tabBarIcon: ({ color, size }) => {
-              const icons = {
-                WardrobeTab: 'shirt-outline',
-                Today: 'sunny-outline',
-                OutfitsTab: 'albums-outline',
-                Calendar: 'calendar-outline',
-                Stats: 'stats-chart-outline',
-                Profile: 'person-outline',
-              };
-              return <Ionicons name={icons[route.name]} size={size} color={color} />;
+            tabBarIcon: ({ color, focused }) => {
+              const [outline, filled] = TAB_ICONS[route.name] || ['ellipse-outline', 'ellipse'];
+              return <Ionicons name={focused ? filled : outline} size={22} color={color} />;
             },
           };
         }}
+        screenListeners={{ tabPress: () => haptic.select() }}
       >
-        <Tabs.Screen name="WardrobeTab" component={WardrobeStackNav} options={{ title: 'Wardrobe' }} />
-        <Tabs.Screen name="Today" component={TodayScreen} options={{ title: 'Today' }} />
-        <Tabs.Screen name="OutfitsTab" component={OutfitsStackNav} options={{ title: 'Outfits' }} />
-        <Tabs.Screen name="Calendar" component={CalendarScreen} options={{ title: 'Calendar' }} />
-        <Tabs.Screen name="Stats" component={StatsScreen} options={{ title: 'Stats' }} />
-        <Tabs.Screen name="Profile" component={ProfileScreen} options={{ title: 'Profile' }} />
+        <Tabs.Screen name="WardrobeTab" component={WardrobeStackNav} options={{ title: 'Closet', tabBarAccessibilityLabel: 'Closet' }} />
+        <Tabs.Screen name="Today" component={TodayScreen} options={{ title: 'Today', tabBarAccessibilityLabel: 'Today' }} />
+        <Tabs.Screen name="OutfitsTab" component={OutfitsStackNav} options={{ title: 'Outfits', tabBarAccessibilityLabel: 'Outfits' }} />
+        <Tabs.Screen name="Calendar" component={CalendarScreen} options={{ title: 'Calendar', tabBarAccessibilityLabel: 'Calendar' }} />
+        <Tabs.Screen name="Stats" component={StatsScreen} options={{ title: 'Stats', tabBarAccessibilityLabel: 'Stats' }} />
+        <Tabs.Screen name="Profile" component={ProfileScreen} options={{ title: 'Profile', tabBarAccessibilityLabel: 'Profile' }} />
       </Tabs.Navigator>
+      <Fab visible={showFab} />
     </View>
   );
 }
 
 function AuthStackNav() {
+  const screenOptions = useStackScreenOptions();
   return (
-    <AuthStack.Navigator screenOptions={{ headerShown: false }}>
+    <AuthStack.Navigator screenOptions={{ ...screenOptions, headerShown: false }}>
       <AuthStack.Screen name="Login" component={LoginScreen} />
       <AuthStack.Screen name="Register" component={RegisterScreen} />
       <AuthStack.Screen
@@ -213,6 +224,7 @@ function StartupLoading() {
 export default function AppNavigator() {
   const { user, loading } = useAuth();
   const theme = useTheme();
+  const rootOptions = useStackScreenOptions();
   if (loading) return <StartupLoading />;
 
   const navTheme = {
@@ -229,7 +241,7 @@ export default function AppNavigator() {
 
   return (
     <NavigationContainer theme={navTheme}>
-      <RootStack.Navigator screenOptions={{ headerShown: false }}>
+      <RootStack.Navigator screenOptions={{ ...rootOptions, headerShown: false }}>
         {user ? (
           <RootStack.Group>
             <RootStack.Screen name="Main" component={MainTabs} />
