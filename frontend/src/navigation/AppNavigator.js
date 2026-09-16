@@ -151,7 +151,8 @@ function MainTabs() {
             tabBarInactiveTintColor: theme.colors.textFaint,
             tabBarActiveBackgroundColor: theme.colors.accentSoft,
             tabBarShowLabel: true,
-            tabBarLabelStyle: { fontSize: 10, fontWeight: '700', marginBottom: 2 },
+            tabBarLabelStyle: { fontSize: 10, fontWeight: '700', marginTop: 2, marginBottom: 2 },
+            tabBarIconStyle: { flex: 0, height: 24, width: 24, marginTop: 0 },
             tabBarStyle: {
               display: hideChrome ? 'none' : 'flex',
               position: 'absolute',
@@ -166,6 +167,7 @@ function MainTabs() {
               borderTopWidth: theme.border.width,
               borderTopColor: theme.colors.text,
               paddingTop: 0,
+              paddingBottom: 0,
               paddingHorizontal: 4,
               ...theme.shadow.card,
             },
@@ -173,7 +175,8 @@ function MainTabs() {
               borderRadius: theme.radius.pill,
               marginHorizontal: 2,
               marginVertical: 6,
-              paddingVertical: 2,
+              paddingVertical: 0,
+              justifyContent: 'center',
             },
             tabBarIcon: ({ color, focused }) => {
               const [outline, filled] = TAB_ICONS[route.name] || ['ellipse-outline', 'ellipse'];

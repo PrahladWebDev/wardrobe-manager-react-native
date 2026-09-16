@@ -60,7 +60,7 @@ function makeTypography(colors) {
 // padding is one number instead of 130 / 110 / 60 scattered around.
 const layout = {
   screenPadding: 20,
-  tabBarHeight: 62,
+  tabBarHeight: 70,
   tabBarInset: 110,
 };
 
