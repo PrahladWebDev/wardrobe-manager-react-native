@@ -34,12 +34,18 @@ async function run() {
       name: 'Demo User',
       email: DEMO_EMAIL,
       password: 'demo1234',
+      // Seeded accounts skip the OTP step so the demo login just works.
+      emailVerified: true,
       homeCity: 'Gurgaon',
       homeLat: 28.4595,
       homeLon: 77.0266,
     });
     console.log('👤 Created demo user:', DEMO_EMAIL, '(password: demo1234)');
   } else {
+    if (!user.emailVerified) {
+      user.emailVerified = true;
+      await user.save();
+    }
     console.log('👤 Demo user already exists, reusing it (progress preserved)');
   }
 

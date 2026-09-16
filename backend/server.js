@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const connectDB = require('./config/db');
+const { verifyMailer } = require('./utils/mailer');
 
 const authRoutes = require('./routes/authRoutes');
 const itemRoutes = require('./routes/itemRoutes');
@@ -39,5 +40,8 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 5000;
 
 connectDB().then(() => {
+  // Non-blocking: a bad/missing app password logs a warning rather than
+  // stopping the API from booting.
+  verifyMailer().catch(() => {});
   app.listen(PORT, () => console.log(`🚀 Wardrobe Manager API running on port ${PORT}`));
 });

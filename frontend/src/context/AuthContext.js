@@ -26,21 +26,48 @@ export function AuthProvider({ children }) {
     })();
   }, []);
 
-  const login = useCallback(async (email, password) => {
-    const { data } = await api.post('/auth/login', { email, password });
+  // Stores the JWT and flips the app over to the signed-in navigator.
+  const applySession = useCallback(async (data) => {
     await AsyncStorage.setItem('token', data.token);
     setToken(data.token);
     setUser(data.user);
     return data.user;
   }, []);
 
+  // Rejects with `err.requiresVerification = true` when the password was
+  // correct but the email is still unverified — the Login screen uses that to
+  // route to the OTP screen instead of showing a plain error.
+  const login = useCallback(async (email, password) => {
+    const { data } = await api.post('/auth/login', { email, password });
+    return applySession(data);
+  }, [applySession]);
+
+  // Does NOT sign in — the account is created unverified and a code is
+  // emailed. Resolves with the email to verify.
   const register = useCallback(async (name, email, password) => {
     const { data } = await api.post('/auth/register', { name, email, password });
-    await AsyncStorage.setItem('token', data.token);
-    setToken(data.token);
-    setUser(data.user);
-    return data.user;
+    return data.email || email;
   }, []);
+
+  const verifyEmail = useCallback(async (email, code) => {
+    const { data } = await api.post('/auth/verify-email', { email, code });
+    return applySession(data);
+  }, [applySession]);
+
+  const resendCode = useCallback(async (email, purpose = 'verify') => {
+    const { data } = await api.post('/auth/resend-code', { email, purpose });
+    return data;
+  }, []);
+
+  const forgotPassword = useCallback(async (email) => {
+    const { data } = await api.post('/auth/forgot-password', { email });
+    return data;
+  }, []);
+
+  const resetPassword = useCallback(async (email, code, password) => {
+    const { data } = await api.post('/auth/reset-password', { email, code, password });
+    return applySession(data);
+  }, [applySession]);
 
   const logout = useCallback(async () => {
     await AsyncStorage.removeItem('token');
@@ -65,7 +92,11 @@ export function AuthProvider({ children }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, register, logout, updateProfile, deleteAccount }}>
+    <AuthContext.Provider value={{
+      user, token, loading,
+      login, register, logout, updateProfile, deleteAccount,
+      verifyEmail, resendCode, forgotPassword, resetPassword,
+    }}>
       {children}
     </AuthContext.Provider>
   );

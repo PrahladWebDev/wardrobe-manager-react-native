@@ -42,8 +42,17 @@ api.interceptors.request.use(async (config) => {
 api.interceptors.response.use(
   (res) => res,
   (err) => {
-    const message = err?.response?.data?.message || err.message || 'Something went wrong';
-    return Promise.reject(new Error(message));
+    const data = err?.response?.data;
+    const message = data?.message || err.message || 'Something went wrong';
+    const wrapped = new Error(message);
+    wrapped.status = err?.response?.status;
+    // Surfaced by /auth/login and /auth/register so the UI can send the user
+    // to the OTP screen instead of just showing an error.
+    if (data?.requiresVerification) {
+      wrapped.requiresVerification = true;
+      wrapped.email = data.email;
+    }
+    return Promise.reject(wrapped);
   }
 );
 

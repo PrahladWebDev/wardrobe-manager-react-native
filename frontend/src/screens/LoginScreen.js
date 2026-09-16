@@ -39,6 +39,12 @@ export default function LoginScreen({ navigation }) {
       await login(email.trim(), password);
       haptic.success();
     } catch (err) {
+      // Right password, unverified address: the server already re-sent a code.
+      if (err.requiresVerification) {
+        haptic.warning();
+        navigation.navigate('VerifyEmail', { email: err.email || email.trim() });
+        return;
+      }
       haptic.error();
       setFormError(err.message);
     } finally {
@@ -94,6 +100,16 @@ export default function LoginScreen({ navigation }) {
           />
         </FadeInUp>
 
+        <FadeInUp delay={370} distance={18}>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('ForgotPassword', { email: email.trim() })}
+            style={styles.forgotRow}
+            accessibilityRole="link"
+          >
+            <Text style={styles.switchLink}>Forgot password?</Text>
+          </TouchableOpacity>
+        </FadeInUp>
+
         {formError ? (
           <FadeInUp delay={0} distance={8}>
             <View style={styles.formError} accessibilityLiveRegion="polite">
@@ -123,6 +139,7 @@ const makeStyles = (theme) => StyleSheet.create({
   container: { flexGrow: 1, justifyContent: 'center', padding: 24 },
   gear: { position: 'absolute', right: 20, zIndex: 10, width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   pillInput: { borderRadius: theme.radius.pill, paddingHorizontal: 18 },
+  forgotRow: { alignSelf: 'flex-end', minHeight: 44, justifyContent: 'center', paddingHorizontal: 4, marginBottom: 4 },
   formError: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: theme.colors.dangerSoft,
     borderRadius: theme.radius.md, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 6,

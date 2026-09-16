@@ -6,6 +6,9 @@ const userSchema = new mongoose.Schema(
     name: { type: String, required: true, trim: true },
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     password: { type: String, required: true, minlength: 6 },
+    // Set true only after the user enters the 6-digit code emailed to them.
+    // Login is refused while this is false.
+    emailVerified: { type: Boolean, default: false },
     avatarUrl: { type: String, default: '' },
     homeCity: { type: String, default: '' },
     homeLat: { type: Number, default: null },
@@ -38,6 +41,7 @@ userSchema.methods.toSafeObject = function () {
     homeLat: this.homeLat,
     homeLon: this.homeLon,
     rotationDays: this.rotationDays,
+    emailVerified: this.emailVerified,
   };
 };
 

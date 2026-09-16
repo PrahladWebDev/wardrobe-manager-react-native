@@ -11,37 +11,32 @@ import { haptic } from '../utils/haptics';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export default function RegisterScreen({ navigation }) {
+// Step 1 of password reset: ask for the email, then hand off to ResetPassword.
+// The API answers identically for known and unknown addresses, so this screen
+// always advances — it can't confirm whether an account exists.
+export default function ForgotPasswordScreen({ route, navigation }) {
   const theme = useTheme();
   const styles = makeStyles(theme);
-  const { register } = useAuth();
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [errors, setErrors] = useState({});
+  const { forgotPassword } = useAuth();
+  const [email, setEmail] = useState(route.params?.email || '');
+  const [error, setError] = useState('');
   const [formError, setFormError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const validate = () => {
-    const next = {};
-    if (name.trim().length < 2) next.name = 'Enter your name';
-    if (!EMAIL_RE.test(email.trim())) next.email = 'Enter a valid email address';
-    if (password.length < 6) next.password = 'Use at least 6 characters';
-    setErrors(next);
-    return Object.keys(next).length === 0;
-  };
-
-  const clear = (key) => setErrors((e) => (e[key] ? { ...e, [key]: undefined } : e));
-
-  const handleRegister = async () => {
+  const handleSend = async () => {
     setFormError('');
-    if (!validate()) { haptic.warning(); return; }
+    const trimmed = email.trim();
+    if (!EMAIL_RE.test(trimmed)) {
+      setError('Enter a valid email address');
+      haptic.warning();
+      return;
+    }
+    setError('');
     setLoading(true);
     try {
-      const pending = await register(name.trim(), email.trim(), password);
+      await forgotPassword(trimmed);
       haptic.success();
-      // Registration no longer signs you in — verify the emailed code first.
-      navigation.navigate('VerifyEmail', { email: pending });
+      navigation.navigate('ResetPassword', { email: trimmed });
     } catch (err) {
       haptic.error();
       setFormError(err.message);
@@ -50,33 +45,25 @@ export default function RegisterScreen({ navigation }) {
     }
   };
 
-  const strength = password.length >= 12 ? 'Strong' : password.length >= 8 ? 'Good' : password.length >= 6 ? 'Okay' : '';
-
   return (
     <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-        <AuthHero title="Create account" subtitle="We'll email you a code to confirm it's you" />
+        <AuthHero title="Forgot password" subtitle="We'll email you a code to reset it" />
 
         <FadeInUp delay={280} distance={18}>
-          <Input label="Name" value={name} onChangeText={(t) => { setName(t); clear('name'); }} placeholder="Jane Doe" leftIcon="person-outline" textContentType="name" error={errors.name} returnKeyType="next" style={styles.pillInput} />
-        </FadeInUp>
-        <FadeInUp delay={330} distance={18}>
-          <Input label="Email" autoCapitalize="none" autoCorrect={false} keyboardType="email-address" textContentType="emailAddress" value={email} onChangeText={(t) => { setEmail(t); clear('email'); }} placeholder="you@example.com" leftIcon="mail-outline" error={errors.email} returnKeyType="next" style={styles.pillInput} />
-        </FadeInUp>
-        <FadeInUp delay={380} distance={18}>
           <Input
-            label="Password"
-            secureTextEntry
-            secureToggle
-            textContentType="newPassword"
-            value={password}
-            onChangeText={(t) => { setPassword(t); clear('password'); }}
-            placeholder="At least 6 characters"
-            leftIcon="lock-closed-outline"
-            error={errors.password}
-            helperText={strength ? `${strength} password` : undefined}
+            label="Email"
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="email-address"
+            textContentType="emailAddress"
+            value={email}
+            onChangeText={(t) => { setEmail(t); if (error) setError(''); }}
+            placeholder="you@example.com"
+            leftIcon="mail-outline"
+            error={error}
             returnKeyType="go"
-            onSubmitEditing={handleRegister}
+            onSubmitEditing={handleSend}
             style={styles.pillInput}
           />
         </FadeInUp>
@@ -88,13 +75,13 @@ export default function RegisterScreen({ navigation }) {
           </View>
         ) : null}
 
-        <FadeInUp delay={440} distance={18}>
-          <AnimatedPillButton title="Sign up" onPress={handleRegister} loading={loading} style={{ marginTop: theme.spacing(2) }} />
+        <FadeInUp delay={340} distance={18}>
+          <AnimatedPillButton title="Send code" onPress={handleSend} loading={loading} style={{ marginTop: theme.spacing(2) }} />
         </FadeInUp>
 
-        <FadeInUp delay={500} distance={18}>
+        <FadeInUp delay={400} distance={18}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.switchRow} accessibilityRole="link">
-            <Text style={styles.switchMuted}>Have an account? </Text>
+            <Text style={styles.switchMuted}>Remembered it? </Text>
             <Text style={styles.switchLink}>Log in</Text>
           </TouchableOpacity>
         </FadeInUp>
