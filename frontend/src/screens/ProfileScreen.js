@@ -136,7 +136,7 @@ export default function ProfileScreen() {
 
       <Button title="Log out" variant="outline" icon="log-out-outline" onPress={confirmLogout} style={{ marginTop: theme.spacing(6) }} />
 
-      <Text style={styles.footer}>Foldd · Built with MERN + Expo</Text>
+      <Text style={styles.footer}>Foldd ·  Wardrobe Manager</Text>
     </Screen>
   );
 }

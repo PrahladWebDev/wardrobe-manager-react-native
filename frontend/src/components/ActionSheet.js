@@ -16,38 +16,43 @@ export default function ActionSheet({ visible, title, subtitle, actions = [], on
   const styles = makeStyles(theme);
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
-      <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel="Close" />
-      <View style={[styles.sheet, { paddingBottom: 12 + insets.bottom }]}>
-        <View style={styles.handle} />
-        {title ? <Text style={[theme.typography.h2, { marginBottom: subtitle ? 2 : 8 }]}>{title}</Text> : null}
-        {subtitle ? <Text style={[theme.typography.bodyMuted, { marginBottom: 10 }]}>{subtitle}</Text> : null}
-        {actions.map((a) => (
-          <TouchableOpacity
-            key={a.label}
-            onPress={() => { haptic.select(); onClose && onClose(); a.onPress && a.onPress(); }}
-            accessibilityRole="button"
-            accessibilityLabel={a.label}
-            activeOpacity={0.7}
-            style={styles.row}
-          >
-            <View style={[styles.rowIcon, a.destructive && { backgroundColor: theme.colors.dangerSoft }]}>
-              <Ionicons name={a.icon || 'ellipse-outline'} size={20} color={a.destructive ? theme.colors.danger : theme.colors.accent} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[theme.typography.body, { fontWeight: '600', color: a.destructive ? theme.colors.danger : theme.colors.text }]}>{a.label}</Text>
-              {a.subtitle ? <Text style={theme.typography.caption}>{a.subtitle}</Text> : null}
-            </View>
+      <View style={styles.container}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="Close">
+          <View style={styles.backdrop} />
+        </Pressable>
+        <View style={[styles.sheet, { paddingBottom: 12 + insets.bottom }]}>
+          <View style={styles.handle} />
+          {title ? <Text style={[theme.typography.h2, { marginBottom: subtitle ? 2 : 8 }]}>{title}</Text> : null}
+          {subtitle ? <Text style={[theme.typography.bodyMuted, { marginBottom: 10 }]}>{subtitle}</Text> : null}
+          {actions.map((a) => (
+            <TouchableOpacity
+              key={a.label}
+              onPress={() => { haptic.select(); onClose && onClose(); a.onPress && a.onPress(); }}
+              accessibilityRole="button"
+              accessibilityLabel={a.label}
+              activeOpacity={0.7}
+              style={styles.row}
+            >
+              <View style={[styles.rowIcon, a.destructive && { backgroundColor: theme.colors.dangerSoft }]}>
+                <Ionicons name={a.icon || 'ellipse-outline'} size={20} color={a.destructive ? theme.colors.danger : theme.colors.accent} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[theme.typography.body, { fontWeight: '600', color: a.destructive ? theme.colors.danger : theme.colors.text }]}>{a.label}</Text>
+                {a.subtitle ? <Text style={theme.typography.caption}>{a.subtitle}</Text> : null}
+              </View>
+            </TouchableOpacity>
+          ))}
+          <TouchableOpacity onPress={onClose} accessibilityRole="button" style={styles.cancel}>
+            <Text style={[theme.typography.button, { color: theme.colors.textMuted }]}>{cancelLabel}</Text>
           </TouchableOpacity>
-        ))}
-        <TouchableOpacity onPress={onClose} accessibilityRole="button" style={styles.cancel}>
-          <Text style={[theme.typography.button, { color: theme.colors.textMuted }]}>{cancelLabel}</Text>
-        </TouchableOpacity>
+        </View>
       </View>
     </Modal>
   );
 }
 
 const makeStyles = (theme) => StyleSheet.create({
+  container: { flex: 1, justifyContent: 'flex-end' },
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)' },
   sheet: {
     backgroundColor: theme.colors.surface,
