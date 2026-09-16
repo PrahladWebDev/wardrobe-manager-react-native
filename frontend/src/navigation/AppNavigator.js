@@ -4,7 +4,6 @@ import { NavigationContainer, DefaultTheme, DarkTheme, getFocusedRouteNameFromRo
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import Fab from '../components/Fab';
@@ -137,7 +136,6 @@ function useIsTabRootFocused() {
 
 function MainTabs() {
   const theme = useTheme();
-  const insets = useSafeAreaInsets();
   const showFab = useIsTabRootFocused();
 
   return (
@@ -159,7 +157,7 @@ function MainTabs() {
               position: 'absolute',
               left: 16,
               right: 16,
-              bottom: 12 + insets.bottom,
+              bottom: 12,
               height: theme.layout.tabBarHeight,
               borderRadius: theme.radius.pill,
               backgroundColor: theme.colors.surface,
