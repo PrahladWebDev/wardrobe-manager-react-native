@@ -32,6 +32,7 @@ import SurpriseOutfitScreen from '../screens/SurpriseOutfitScreen';
 import RepairTrackerScreen from '../screens/RepairTrackerScreen';
 import WishlistScreen from '../screens/WishlistScreen';
 import WishlistFormScreen from '../screens/WishlistFormScreen';
+import DeleteAccountScreen from '../screens/DeleteAccountScreen';
 
 const AuthStack = createNativeStackNavigator();
 const RootStack = createNativeStackNavigator();
@@ -255,6 +256,11 @@ export default function AppNavigator() {
               name="Settings"
               component={SettingsScreen}
               options={{ headerShown: true, title: 'Settings', presentation: 'modal' }}
+            />
+            <RootStack.Screen
+              name="DeleteAccount"
+              component={DeleteAccountScreen}
+              options={{ headerShown: true, title: 'Delete account', presentation: 'modal' }}
             />
           </RootStack.Group>
         ) : (

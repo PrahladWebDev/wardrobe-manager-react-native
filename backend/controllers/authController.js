@@ -1,6 +1,12 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const cloudinary = require('../config/cloudinary');
+const ClothingItem = require('../models/ClothingItem');
+const Outfit = require('../models/Outfit');
+const PackingList = require('../models/PackingList');
+const Poll = require('../models/Poll');
+const WearLog = require('../models/WearLog');
+const WishlistItem = require('../models/WishlistItem');
 
 const genToken = (id) =>
   jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN || '30d' });
@@ -70,6 +76,48 @@ exports.updateMe = async (req, res) => {
     }
     await user.save();
     res.json({ user: user.toSafeObject() });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// DELETE /api/auth/me
+// Permanently deletes the signed-in user's account and every record tied to
+// it (closet items, outfits, wear log, packing list, polls, wishlist).
+// Required by Google Play's User Data policy: any app that supports account
+// creation must offer in-app account deletion.
+exports.deleteMe = async (req, res) => {
+  try {
+    const { password } = req.body;
+    if (!password) {
+      return res.status(400).json({ message: 'Password is required to delete your account' });
+    }
+    const user = await User.findById(req.user._id);
+    if (!user || !(await user.matchPassword(password))) {
+      return res.status(401).json({ message: 'Incorrect password' });
+    }
+
+    const userId = user._id;
+    await Promise.all([
+      ClothingItem.deleteMany({ user: userId }),
+      Outfit.deleteMany({ user: userId }),
+      PackingList.deleteMany({ user: userId }),
+      Poll.deleteMany({ user: userId }),
+      WearLog.deleteMany({ user: userId }),
+      WishlistItem.deleteMany({ user: userId }),
+    ]);
+
+    if (user.avatarUrl && user.avatarUrl.includes('cloudinary')) {
+      try {
+        const publicId = user.avatarUrl.split('/').slice(-1)[0].split('.')[0];
+        await cloudinary.uploader.destroy(`wardrobe-manager/avatars/${publicId}`);
+      } catch (_) {
+        // Non-fatal — don't block account deletion on a Cloudinary cleanup failure.
+      }
+    }
+
+    await user.deleteOne();
+    res.json({ message: 'Account deleted' });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

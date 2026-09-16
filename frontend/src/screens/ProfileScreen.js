@@ -135,6 +135,14 @@ export default function ProfileScreen() {
       </Card>
 
       <Button title="Log out" variant="outline" icon="log-out-outline" onPress={confirmLogout} style={{ marginTop: theme.spacing(6) }} />
+      <Button
+        title="Delete account"
+        variant="ghost"
+        icon="trash-outline"
+        onPress={() => navigation.navigate('DeleteAccount')}
+        style={{ marginTop: theme.spacing(2) }}
+        textStyle={{ color: theme.colors.danger || theme.colors.accent }}
+      />
 
       <Text style={styles.footer}>Foldd ·  Wardrobe Manager</Text>
     </Screen>

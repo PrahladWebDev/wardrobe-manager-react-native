@@ -9,7 +9,7 @@
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#F7F1E4"
+      "backgroundColor": "#0F1115"
     },
     "assetBundlePatterns": [
       "assets/**/*"
@@ -19,16 +19,16 @@
     },
     "android": {
       "package": "com.wardrobemanager.app",
-      "permissions": [
-        "android.permission.CAMERA",
-        "android.permission.ACCESS_FINE_LOCATION",
-        "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.RECORD_AUDIO"
-      ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#F7F1E4"
-      }
+        "backgroundColor": "#0F1115"
+      },
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.CAMERA"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -37,7 +37,7 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#F7F1E4",
+          "backgroundColor": "#0F1115",
           "image": "./assets/splash.png",
           "imageWidth": 180
         }
@@ -58,7 +58,8 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Allow Wardrobe Manager to use your camera to scan barcodes and receipts."
+          "cameraPermission": "Allow Wardrobe Manager to use your camera to scan barcodes and receipts.",
+          "recordAudioAndroid": false
         }
       ],
       "expo-notifications",
@@ -67,10 +68,10 @@
       "expo-image",
       "@react-native-community/datetimepicker"
     ],
-    "owner": "prahladsingh7512",
+    "owner": "prahladsingh7512s-team",
     "extra": {
       "eas": {
-        "projectId": "7f275af4-bd95-48eb-a24a-0744a6526946"
+        "projectId": "7e4fc839-ead3-44f0-9641-332db899fe83"
       }
     }
   }
