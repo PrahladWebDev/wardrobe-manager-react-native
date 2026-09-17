@@ -43,5 +43,5 @@ connectDB().then(() => {
   // Non-blocking: a bad/missing app password logs a warning rather than
   // stopping the API from booting.
   verifyMailer().catch(() => {});
-  app.listen(PORT, () => console.log(`🚀 Wardrobe Manager API running on port ${PORT}`));
+  app.listen(PORT, () => console.log(`🚀 FoldD API running on port ${PORT}`));
 });

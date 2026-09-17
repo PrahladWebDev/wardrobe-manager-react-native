@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Foldd",
+    "name": "FoldD",
     "slug": "wardrobe-manager",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -8,8 +8,8 @@
     "userInterfaceStyle": "automatic",
     "splash": {
       "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#0F1115"
+      "resizeMode": "cover",
+      "backgroundColor": "#631324"
     },
     "assetBundlePatterns": [
       "assets/**/*"
@@ -21,7 +21,7 @@
       "package": "com.wardrobemanager.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#0F1115"
+        "backgroundColor": "#7E142C"
       },
       "permissions": [
         "android.permission.ACCESS_COARSE_LOCATION",
@@ -37,28 +37,28 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#0F1115",
+          "backgroundColor": "#631324",
           "image": "./assets/splash.png",
-          "imageWidth": 180
+          "resizeMode": "cover"
         }
       ],
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Allow Wardrobe Manager to use your location to suggest weather-appropriate outfits."
+          "locationAlwaysAndWhenInUsePermission": "Allow FoldD to use your location to suggest weather-appropriate outfits."
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "Allow Wardrobe Manager to access your photos to add clothing items.",
-          "cameraPermission": "Allow Wardrobe Manager to use your camera to photograph clothing items."
+          "photosPermission": "Allow FoldD to access your photos to add clothing items.",
+          "cameraPermission": "Allow FoldD to use your camera to photograph clothing items."
         }
       ],
       [
         "expo-camera",
         {
-          "cameraPermission": "Allow Wardrobe Manager to use your camera to scan barcodes and receipts.",
+          "cameraPermission": "Allow FoldD to use your camera to scan barcodes and receipts.",
           "recordAudioAndroid": false
         }
       ],

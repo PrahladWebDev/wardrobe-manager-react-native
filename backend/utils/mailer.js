@@ -8,7 +8,7 @@ const HOST = process.env.SMTP_HOST || 'smtp.gmail.com';
 const PORT = Number(process.env.SMTP_PORT || 465);
 const USER = process.env.SMTP_USER || '';
 const PASS = (process.env.SMTP_PASS || '').replace(/\s+/g, ''); // Google shows app passwords in 4-char groups
-const FROM_NAME = process.env.SMTP_FROM_NAME || 'Wardrobe Manager';
+const FROM_NAME = process.env.SMTP_FROM_NAME || 'FoldD';
 
 let transporter = null;
 
@@ -74,7 +74,7 @@ const wrap = (heading, intro, code, footer) => `
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;margin:0 auto;background:#FFFFFF;border:1px solid #111111;border-radius:16px;">
       <tr>
         <td style="padding:32px 28px;">
-          <p style="margin:0 0 4px;font-size:12px;letter-spacing:1.4px;text-transform:uppercase;color:#8A8A85;">Wardrobe Manager</p>
+          <p style="margin:0 0 4px;font-size:12px;letter-spacing:1.4px;text-transform:uppercase;color:#8A8A85;">FoldD</p>
           <h1 style="margin:0 0 16px;font-size:24px;line-height:1.25;color:#111111;">${heading}</h1>
           <p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:#4A4A46;">${intro}</p>
           <div style="text-align:center;margin:0 0 24px;">
@@ -92,7 +92,7 @@ async function sendVerificationCode(to, name, code, minutes) {
   const greeting = name ? `Hi ${name}, welcome!` : 'Welcome!';
   return sendMail({
     to,
-    subject: `${code} is your Wardrobe Manager verification code`,
+    subject: `${code} is your FoldD verification code`,
     text: `${greeting}\n\nYour verification code is ${code}. It expires in ${minutes} minutes.`,
     html: wrap(
       'Verify your email',
@@ -107,7 +107,7 @@ async function sendResetCode(to, name, code, minutes) {
   const greeting = name ? `Hi ${name},` : 'Hi,';
   return sendMail({
     to,
-    subject: `${code} is your Wardrobe Manager password reset code`,
+    subject: `${code} is your FoldD password reset code`,
     text: `${greeting}\n\nYour password reset code is ${code}. It expires in ${minutes} minutes.`,
     html: wrap(
       'Reset your password',

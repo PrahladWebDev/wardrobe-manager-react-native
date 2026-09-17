@@ -49,7 +49,7 @@ export default function PollResultsScreen({ route }) {
     ]);
   };
 
-  const share = () => Share.share({ message: `Vote on my outfit! Open Foldd → Outfits → Polls → Enter code: ${poll.code}` });
+  const share = () => Share.share({ message: `Vote on my outfit! Open FoldD → Outfits → Polls → Enter code: ${poll.code}` });
 
   if (status === 'loading') return <Screen safeTop={false} tabInset={false} scroll><DetailSkeleton /></Screen>;
   if (status === 'error' || !poll) return <Screen safeTop={false} tabInset={false}><ErrorState message={error} onRetry={reload} /></Screen>;

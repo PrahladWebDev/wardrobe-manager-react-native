@@ -144,7 +144,7 @@ export default function ProfileScreen() {
         textStyle={{ color: theme.colors.danger || theme.colors.accent }}
       />
 
-      <Text style={styles.footer}>Foldd ·  Wardrobe Manager</Text>
+      <Text style={styles.footer}>FoldD ·  Wardrobe Manager</Text>
     </Screen>
   );
 }

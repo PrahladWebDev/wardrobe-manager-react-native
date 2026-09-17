@@ -66,11 +66,11 @@ export default function BarcodeScanScreen({ navigation }) {
         <EmptyState
           icon="barcode-outline"
           title="Camera access needed"
-          subtitle="Foldd only uses the camera while you scan a barcode."
+          subtitle="FoldD only uses the camera while you scan a barcode."
           action={{ label: 'Allow camera', onPress: requestPermission }}
         />
         {!permission.canAskAgain && (
-          <Text style={[theme.typography.caption, { textAlign: 'center', paddingHorizontal: 30 }]}>Camera was denied earlier. Enable it in your phone's Settings for Foldd.</Text>
+          <Text style={[theme.typography.caption, { textAlign: 'center', paddingHorizontal: 30 }]}>Camera was denied earlier. Enable it in your phone's Settings for FoldD.</Text>
         )}
       </View>
     );

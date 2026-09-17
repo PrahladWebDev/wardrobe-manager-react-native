@@ -67,7 +67,9 @@ export default function AuthHero({ title, subtitle }) {
           <Animated.View style={[styles.mark, { transform: [{ scale: markScale }] }]}>
             <Ionicons name="shirt" size={18} color={theme.colors.onAccent} />
           </Animated.View>
-          <Text style={styles.wordmark}>FOLDD</Text>
+          <Text style={styles.wordmark}>
+            Fold<Text style={{ color: theme.colors.accent }}>D</Text>
+          </Text>
         </View>
       </FadeInUp>
 

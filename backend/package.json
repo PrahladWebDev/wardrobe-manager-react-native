@@ -1,7 +1,7 @@
 {
   "name": "wardrobe-manager-backend",
   "version": "1.0.0",
-  "description": "Wardrobe Manager API - Node/Express/MongoDB",
+  "description": "FoldD API - Node/Express/MongoDB",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

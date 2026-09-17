@@ -45,7 +45,7 @@ export default function CreatePollScreen({ navigation }) {
     try {
       const { data } = await api.post('/polls', { question: question.trim() || 'Which outfit should I wear?', outfitIds: selected });
       haptic.success();
-      await Share.share({ message: `Help me pick an outfit! Open Foldd → Outfits → Polls → Enter a code, and enter: ${data.poll.code}` });
+      await Share.share({ message: `Help me pick an outfit! Open FoldD → Outfits → Polls → Enter a code, and enter: ${data.poll.code}` });
       navigation.replace('PollResults', { id: data.poll._id });
     } catch (err) {
       haptic.error();

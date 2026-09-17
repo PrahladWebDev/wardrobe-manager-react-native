@@ -143,7 +143,7 @@ export default function WardrobeScreen({ navigation }) {
       <EmptyState
         icon="shirt-outline"
         title="Your closet is empty"
-        subtitle="Add a few pieces and Foldd will start suggesting outfits."
+        subtitle="Add a few pieces and FoldD will start suggesting outfits."
         action={{ label: 'Add your first item', onPress: () => navigation.navigate('AddItem') }}
       />
     );

@@ -19,7 +19,10 @@ function StartupScreen({ message = 'Loading your wardrobe…' }) {
   return (
     <View style={[styles.startup, { backgroundColor: theme.colors.bg }]}>
       <Image source={require('./assets/icon.png')} style={styles.logo} resizeMode="contain" />
-      <Text style={[styles.title, { color: theme.colors.text }]}>Foldd</Text>
+      <Text style={styles.title}>
+        <Text style={{ color: theme.colors.text }}>Fold</Text>
+        <Text style={{ color: theme.colors.accent }}>D</Text>
+      </Text>
       <ActivityIndicator size="small" color={theme.colors.accent} style={styles.spinner} />
       <Text style={[styles.message, { color: theme.colors.textFaint }]}>{message}</Text>
     </View>

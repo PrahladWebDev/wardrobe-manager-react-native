@@ -112,7 +112,7 @@ export default function PackingListScreen() {
   return (
     <Screen safeTop={false} tabInset={false} scroll keyboard>
       <Text style={[theme.typography.bodyMuted, { marginBottom: 16 }]}>
-        Pick your trip dates and Foldd packs from what's clean in your closet, based on the forecast.
+        Pick your trip dates and FoldD packs from what's clean in your closet, based on the forecast.
       </Text>
 
       <View style={{ flexDirection: 'row', gap: 10 }}>

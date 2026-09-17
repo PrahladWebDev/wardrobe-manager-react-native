@@ -296,7 +296,31 @@ const crimsonNoir = build('crimsonNoir', 'Crimson Noir', 'dark', {
   onAccent: '#FFFFFF',
 }, { gradient: ['#D9455A', '#8C2C3A'] });
 
+// 11. FoldD Merlot (brand theme, matches the app icon/splash — deep maroon
+// on a warm blush-cream base, rose-pink accent lifted from the folded-cloth
+// mark)
+const folddMerlot = build('folddMerlot', 'FoldD Merlot', 'light', {
+  bg: '#FBF2F0',
+  surface: '#FFFFFF',
+  surfaceAlt: '#F7E1E1',
+  border: '#F0D3D3',
+  text: '#2B0E14',
+  textMuted: '#8A5A61',
+  textFaint: '#C79CA1',
+  accent: '#7E142C',
+  accentSoft: '#F3D9DE',
+  success: '#4C7A5C',
+  successSoft: '#DEEBE1',
+  danger: '#B23A4E',
+  dangerSoft: '#F6DCE0',
+  info: '#5A6E99',
+  infoSoft: '#E1E5F1',
+  black: '#000000',
+  onAccent: '#FFFFFF',
+}, { gradient: ['#9C1C37', '#631324'] });
+
 export const themes = {
+  folddMerlot,
   creamInk,
   warmLight,
   midnight,
@@ -313,4 +337,4 @@ export const themeList = Object.values(themes).map((t) => ({
   id: t.id, name: t.name, mode: t.mode, accent: t.colors.accent, onAccent: t.colors.onAccent, bg: t.colors.bg, surface: t.colors.surface,
 }));
 
-export const DEFAULT_THEME_ID = 'creamInk';
+export const DEFAULT_THEME_ID = 'folddMerlot';
