@@ -7,8 +7,8 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "cover",
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
       "backgroundColor": "#631324"
     },
     "assetBundlePatterns": [
@@ -21,6 +21,8 @@
       "package": "com.wardrobemanager.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundImage": "./assets/adaptive-icon-bg.png",
+        "monochromeImage": "./assets/adaptive-icon-mono.png",
         "backgroundColor": "#7E142C"
       },
       "permissions": [
@@ -38,8 +40,14 @@
         "expo-splash-screen",
         {
           "backgroundColor": "#631324",
-          "image": "./assets/splash.png",
-          "resizeMode": "cover"
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 192,
+          "resizeMode": "contain",
+          "ios": {
+            "image": "./assets/splash.png",
+            "resizeMode": "cover",
+            "enableFullScreenImage_legacy": true
+          }
         }
       ],
       [
